@@ -16,7 +16,11 @@ import {
 } from '../components/ui';
 import { movementTypeKey, operationStatusKey } from '../constants/labels';
 import { extractErrorMessage } from '../services/apiClient';
-import { fetchDaaras } from '../services/daara.service';
+import {
+  categoryFilterOptions,
+  categoryFilterParams,
+  fetchDaaras,
+} from '../services/daara.service';
 import { fetchJournal } from '../services/reporting.service';
 import { useExerciseStore } from '../store/exerciseStore';
 import { formatDate } from '../utils/format';
@@ -43,7 +47,7 @@ export default function FinancialJournalPage() {
     queryFn: () =>
       fetchJournal(exerciseId, {
         movement_type: typeFilter || undefined,
-        entity_id: daaraFilter || undefined,
+        ...categoryFilterParams(daaraFilter),
         limit: 200,
       }),
     enabled: Boolean(exerciseId),
@@ -63,10 +67,7 @@ export default function FinancialJournalPage() {
   if (journal.isLoading) return <Loader />;
   if (journal.error) return <ErrorNote message={extractErrorMessage(journal.error)} />;
 
-  const daaraOptions = (daaras.data ?? []).map((daara) => ({
-    value: daara.id,
-    label: daara.name,
-  }));
+  const daaraOptions = categoryFilterOptions(daaras.data ?? [], t('common.empty.noCategory'));
 
   const typeOptions = [
     { value: 'CONTRIBUTION', label: t(movementTypeKey('CONTRIBUTION')) },
@@ -126,7 +127,7 @@ export default function FinancialJournalPage() {
               </td>
               <td>{row.label}</td>
               <td>
-                {row.entity_name ? (
+                {row.entity_name || row.uncategorized ? (
                   <DaaraLabel name={row.entity_name} />
                 ) : (
                   <span className="chip" style={{ color: 'var(--gold)' }}>

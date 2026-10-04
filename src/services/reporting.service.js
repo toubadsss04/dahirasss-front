@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { categoryFilterParams } from './daara.service';
 
 /**
  * Read the dashboard figures for one exercise.
@@ -15,12 +16,13 @@ export async function fetchDashboard(exerciseId) {
  * Read the full financial statement of one exercise.
  *
  * @param {string} exerciseId Identifier.
- * @param {string} [daaraId] Restrict the breakdown to one daara.
+ * @param {string} [categoryFilter] A category, NO_CATEGORY for the members
+ *   without one, or empty for every category.
  * @returns {Promise<object>} The statement.
  */
-export async function fetchStatement(exerciseId, daaraId) {
+export async function fetchStatement(exerciseId, categoryFilter) {
   const { data } = await apiClient.get(`/statement/${exerciseId}`, {
-    params: daaraId ? { entity_id: daaraId } : {},
+    params: categoryFilterParams(categoryFilter),
   });
   return data;
 }

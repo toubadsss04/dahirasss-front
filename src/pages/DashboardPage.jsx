@@ -13,6 +13,7 @@ import {
   Money,
   PageHeader,
 } from '../components/ui';
+import { NO_CATEGORY } from '../constants/members';
 import { extractErrorMessage } from '../services/apiClient';
 import { fetchDashboard } from '../services/reporting.service';
 import { useExerciseStore } from '../store/exerciseStore';
@@ -230,7 +231,7 @@ export default function DashboardPage() {
         rows={entities}
         emptyMessage={t('dashboard.daaras.empty')}
         renderRow={(row) => (
-          <tr key={row.entity_id}>
+          <tr key={row.entity_id ?? NO_CATEGORY}>
             <td>
               <DaaraLabel name={row.entity_name} withMark />
             </td>

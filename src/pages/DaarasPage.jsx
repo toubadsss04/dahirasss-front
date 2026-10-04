@@ -5,16 +5,10 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import { Pencil, Plus, Power, PowerOff } from 'lucide-react';
 
+import CategoryCard from '../components/ui/CategoryCard';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import FormDialog from '../components/ui/FormDialog';
-import {
-  EmptyState,
-  ErrorNote,
-  Loader,
-  Money,
-  PageHeader,
-  StatusBadge,
-} from '../components/ui';
+import { EmptyState, ErrorNote, Loader, PageHeader, StatusBadge } from '../components/ui';
 import { entityStatusKey } from '../constants/labels';
 import { useDomainMutation } from '../hooks/useDomainMutation';
 import { usePermissions } from '../hooks/usePermissions';
@@ -22,7 +16,6 @@ import { extractErrorMessage } from '../services/apiClient';
 import { createDaara, fetchDaaras, updateDaara } from '../services/daara.service';
 import { fetchStatement } from '../services/reporting.service';
 import { useExerciseStore } from '../store/exerciseStore';
-import { avatarColor, initials } from '../utils/format';
 
 const EMPTY_FORM = { name: '', description: '' };
 
@@ -66,6 +59,7 @@ export default function DaarasPage() {
   const financials = new Map(
     (statement.data?.entities ?? []).map((row) => [row.entity_id, row]),
   );
+  const uncategorized = financials.get(null);
 
   const openCreate = () => {
     setEditing(null);
@@ -107,135 +101,59 @@ export default function DaarasPage() {
         }
       />
 
-      {daaras.data.length === 0 ? (
+      {daaras.data.length === 0 && !uncategorized ? (
         <div className="card">
           <EmptyState message={t('daaras.empty')} />
         </div>
       ) : (
         <div className="grid ent-grid">
           {daaras.data.map((daara) => {
-            const stats = financials.get(daara.id);
             const isActive = daara.status === 'ACTIVE';
-
             return (
-              <div className="card ent" key={daara.id}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
-                      display: 'grid',
-                      placeItems: 'center',
-                      fontFamily: 'var(--serif)',
-                      fontSize: 19,
-                      fontWeight: 600,
-                      color: '#fff',
-                      background: avatarColor(daara.name),
-                      flex: '0 0 auto',
-                    }}
-                  >
-                    {initials(daara.name)}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ fontSize: 16.5 }}>{daara.name}</h3>
-                    {daara.description && (
-                      <div
-                        style={{
-                          fontSize: 12.5,
-                          color: 'var(--muted)',
-                          marginTop: 1,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {daara.description}
-                      </div>
-                    )}
-                  </div>
+              <CategoryCard
+                key={daara.id}
+                name={daara.name}
+                description={daara.description}
+                badge={
                   <StatusBadge
                     label={t(entityStatusKey(daara.status))}
                     tone={isActive ? 'active' : 'inactive'}
                   />
-                </div>
-
-                <div className="e-stats">
-                  <div>
-                    <div className="s-l">{t('daaras.stats.members')}</div>
-                    <div className="s-v">{daara.members_count}</div>
-                  </div>
-                  <div>
-                    <div className="s-l">{t('daaras.stats.projects')}</div>
-                    <div className="s-v pos">
-                      <Money value={stats?.total_project_payments ?? 0} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="s-l">{t('daaras.stats.collected')}</div>
-                    <div className="s-v pos">
-                      <Money value={stats?.total_contributions ?? 0} />
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                  }}
-                >
-                  <div style={{ textAlign: 'right' }}>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--faint)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '.05em',
-                      }}
-                    >
-                      {t('daaras.stats.balance')}
-                    </div>
-                    <div
-                      style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 600 }}
-                    >
-                      <Money value={stats?.balance ?? 0} />
-                    </div>
-                  </div>
-                </div>
-
-                {canManageDaaras && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 8,
-                      borderTop: '1px solid var(--line-soft)',
-                      paddingTop: 12,
-                    }}
-                  >
-                    <Button
-                      size="small"
-                      startIcon={<Pencil size={14} />}
-                      onClick={() => openEdit(daara)}
-                    >
-                      {t('common.actions.edit')}
-                    </Button>
-                    <Button
-                      size="small"
-                      color={isActive ? 'error' : 'primary'}
-                      startIcon={
-                        isActive ? <PowerOff size={14} /> : <Power size={14} />
-                      }
-                      onClick={() => setToToggle(daara)}
-                    >
-                      {isActive ? t('daaras.deactivate') : t('daaras.activate')}
-                    </Button>
-                  </div>
-                )}
-              </div>
+                }
+                membersCount={daara.members_count}
+                stats={financials.get(daara.id)}
+                actions={
+                  canManageDaaras && (
+                    <>
+                      <Button
+                        size="small"
+                        startIcon={<Pencil size={14} />}
+                        onClick={() => openEdit(daara)}
+                      >
+                        {t('common.actions.edit')}
+                      </Button>
+                      <Button
+                        size="small"
+                        color={isActive ? 'error' : 'primary'}
+                        startIcon={isActive ? <PowerOff size={14} /> : <Power size={14} />}
+                        onClick={() => setToToggle(daara)}
+                      >
+                        {isActive ? t('daaras.deactivate') : t('daaras.activate')}
+                      </Button>
+                    </>
+                  )
+                }
+              />
             );
           })}
+          {uncategorized && (
+            <CategoryCard
+              name={t('common.empty.noCategory')}
+              description={t('daaras.uncategorizedHint')}
+              membersCount={uncategorized.members_count}
+              stats={uncategorized}
+            />
+          )}
         </div>
       )}
 

@@ -587,6 +587,7 @@ export default {
   },
 
   daaras: {
+    uncategorizedHint: 'أعضاء لا ينتمون إلى أي فئة',
     title: 'الفئات',
     subtitle: 'أعضاء الدائرة موزّعون على فئات، وعددها غير محدود',
     add: 'فئة جديدة',

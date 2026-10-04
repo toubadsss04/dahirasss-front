@@ -591,6 +591,7 @@ export default {
   },
 
   daaras: {
+    uncategorizedHint: 'Membres qui n\'appartiennent à aucune catégorie',
     title: 'Catégories',
     subtitle: 'Les membres de la Dahira sont répartis en catégories, leur nombre est libre',
     add: 'Nouvelle catégorie',

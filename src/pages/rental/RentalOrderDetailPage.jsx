@@ -239,8 +239,9 @@ export default function RentalOrderDetailPage() {
             </div>
           )}
           {record.remarks && (
-            <div className="r-row">
-              <span className="l">{record.remarks}</span>
+            <div className="r-row" style={{ alignItems: 'flex-start' }}>
+              <span className="l">{t('rental.orders.remarks')}</span>
+              <span style={{ whiteSpace: 'pre-line', textAlign: 'end' }}>{record.remarks}</span>
             </div>
           )}
           {record.cancel_reason && (

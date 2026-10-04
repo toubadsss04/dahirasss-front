@@ -16,8 +16,9 @@ import {
   PageHeader,
 } from '../components/ui';
 
+import { NO_CATEGORY } from '../constants/members';
 import { extractErrorMessage } from '../services/apiClient';
-import { fetchDaaras } from '../services/daara.service';
+import { categoryFilterOptions, fetchDaaras } from '../services/daara.service';
 import { fetchStatement } from '../services/reporting.service';
 import { useExerciseStore } from '../store/exerciseStore';
 import { formatMonth } from '../utils/format';
@@ -102,7 +103,7 @@ export default function FinancialStatementPage() {
   const daaras = useQuery({ queryKey: ['daaras'], queryFn: () => fetchDaaras() });
   const statement = useQuery({
     queryKey: ['statement', exerciseId, daaraFilter],
-    queryFn: () => fetchStatement(exerciseId, daaraFilter || undefined),
+    queryFn: () => fetchStatement(exerciseId, daaraFilter),
     enabled: Boolean(exerciseId),
   });
 
@@ -121,10 +122,7 @@ export default function FinancialStatementPage() {
   if (statement.error) return <ErrorNote message={extractErrorMessage(statement.error)} />;
 
   const { summary, entities, monthly, members, categories } = statement.data;
-  const daaraOptions = (daaras.data ?? []).map((daara) => ({
-    value: daara.id,
-    label: daara.name,
-  }));
+  const daaraOptions = categoryFilterOptions(daaras.data ?? [], t('common.empty.noCategory'));
   const scopeLabel = daaraFilter
     ? (daaraOptions.find((option) => option.value === daaraFilter)?.label ?? '')
     : t('common.filters.allDaaras');
@@ -187,7 +185,7 @@ export default function FinancialStatementPage() {
           rows={entities}
           emptyMessage={t('statement.daaraTable.empty')}
           renderRow={(row) => (
-            <tr key={row.entity_id}>
+            <tr key={row.entity_id ?? NO_CATEGORY}>
               <td>
                 <DaaraLabel name={row.entity_name} withMark />
               </td>

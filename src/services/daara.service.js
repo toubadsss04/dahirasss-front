@@ -1,3 +1,4 @@
+import { NO_CATEGORY } from '../constants/members';
 import { apiClient } from './apiClient';
 
 /**
@@ -56,4 +57,31 @@ export async function createDaara(payload) {
 export async function updateDaara(daaraId, payload) {
   const { data } = await apiClient.patch(`/entities/${daaraId}`, payload);
   return data;
+}
+
+/**
+ * Turn the value of a category filter into the parameters the API expects.
+ *
+ * @param {string} value A category identifier, NO_CATEGORY for the members
+ *   who belong to none, or an empty string for every category.
+ * @returns {{entity_id?: string, uncategorized?: boolean}} The query parameters.
+ */
+export function categoryFilterParams(value) {
+  if (!value) return {};
+  if (value === NO_CATEGORY) return { uncategorized: true };
+  return { entity_id: value };
+}
+
+/**
+ * Choices of a category filter: every category, then the members without one.
+ *
+ * @param {Array<{id: string, name: string}>} categories The categories.
+ * @param {string} noCategoryLabel Label of the choice for members without a category.
+ * @returns {Array<{value: string, label: string}>} The choices.
+ */
+export function categoryFilterOptions(categories, noCategoryLabel) {
+  return [
+    ...categories.map((category) => ({ value: category.id, label: category.name })),
+    { value: NO_CATEGORY, label: noCategoryLabel },
+  ];
 }

@@ -22,7 +22,11 @@ import { memberStatusKey } from '../constants/labels';
 import { ROUTES, buildPath } from '../constants/routes';
 import { useDomainMutation } from '../hooks/useDomainMutation';
 import { extractErrorMessage } from '../services/apiClient';
-import { fetchDaaras } from '../services/daara.service';
+import {
+  categoryFilterOptions,
+  categoryFilterParams,
+  fetchDaaras,
+} from '../services/daara.service';
 import {
   createMember,
   fetchAllMembers,
@@ -59,7 +63,7 @@ export default function MembersPage() {
     queryKey: ['members', 'all', { daaraFilter, statusFilter }],
     queryFn: () =>
       fetchAllMembers({
-        entity_id: daaraFilter || undefined,
+        ...categoryFilterParams(daaraFilter),
         status: statusFilter || undefined,
       }),
   });
@@ -112,11 +116,11 @@ export default function MembersPage() {
             ),
           }}
         />
-        {daaraOptions.length > 1 && (
+        {daaraOptions.length > 0 && (
           <AppSelect
             value={daaraFilter}
             onChange={setDaaraFilter}
-            options={daaraOptions}
+            options={categoryFilterOptions(daaras.data ?? [], t('common.empty.noCategory'))}
             allowEmpty
             placeholder={t('common.filters.allDaaras')}
             sx={{ minWidth: 170 }}
