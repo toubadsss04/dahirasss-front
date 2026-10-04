@@ -1,3 +1,5 @@
+import { memberGenderKey } from '../constants/labels';
+import { MEMBER_GENDERS } from '../constants/members';
 import { matchesSearch } from '../utils/format';
 import { buildChanges, optionalDate, optionalText, requiredText } from '../utils/formChanges';
 import { apiClient } from './apiClient';
@@ -78,11 +80,25 @@ export function mergePages(pages) {
  * page says how many there are, and the pages left are read together rather
  * than one after the other.
  *
- * @param {{entity_id?: string, status?: string}} [filters] Section and status.
+ * @param {{entity_id?: string, status?: string, gender?: string}} [filters] Section,
+ *   status and sex.
  * @returns {Promise<Array<object>>} All the matching members.
  */
 export async function fetchAllMembers(filters = {}) {
   return fetchEveryPage('/members', filters);
+}
+
+/**
+ * Build the choices of a sex picker, women first.
+ *
+ * @param {(key: string) => string} t Translation function.
+ * @returns {Array<{value: string, label: string}>} The two choices.
+ */
+export function memberGenderOptions(t) {
+  return [MEMBER_GENDERS.FEMALE, MEMBER_GENDERS.MALE].map((gender) => ({
+    value: gender,
+    label: t(memberGenderKey(gender)),
+  }));
 }
 
 /**
@@ -155,6 +171,7 @@ const MEMBER_CONVERTERS = {
   first_name: requiredText,
   last_name: requiredText,
   phone: optionalText,
+  gender: requiredText,
   joined_on: optionalDate,
 };
 
@@ -165,14 +182,15 @@ const MEMBER_CONVERTERS = {
  * compared field by field with what the person typed.
  *
  * @param {object} member The member as returned by the API.
- * @returns {{first_name: string, last_name: string, phone: string, joined_on: string}}
- *   The form values.
+ * @returns {{first_name: string, last_name: string, phone: string, gender: string,
+ *   joined_on: string}} The form values, gender empty while it was never recorded.
  */
 export function toMemberForm(member) {
   return {
     first_name: member.first_name ?? '',
     last_name: member.last_name ?? '',
     phone: member.phone ?? '',
+    gender: member.gender ?? '',
     joined_on: member.joined_on ?? '',
   };
 }

@@ -11,6 +11,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { joinSection } from '../../services/auth.service';
 import { extractErrorMessage } from '../../services/apiClient';
 import { fetchDaaraNames } from '../../services/daara.service';
+import { memberGenderOptions } from '../../services/members.service';
 import { useAuthStore } from '../../store/authStore';
 
 /**
@@ -18,9 +19,9 @@ import { useAuthStore } from '../../store/authStore';
  *
  * Every super administrator belongs to the Dahira as a member of a section,
  * so they can give at meetings like everyone else. Until they have chosen
- * one, this band stays at the top of every screen. With no section created
- * yet, it only says that one is needed first. Once chosen, the section is
- * changed from the member's own record.
+ * one, along with their sex, this band stays at the top of every screen.
+ * With no section created yet, it only says that one is needed first. Once
+ * chosen, the section is changed from the member's own record.
  *
  * @returns {JSX.Element|null} The band, or nothing once the account is a member.
  */
@@ -29,6 +30,7 @@ export default function MembershipPrompt() {
   const { user, isSuperAdmin } = usePermissions();
   const setUser = useAuthStore((state) => state.setUser);
   const [sectionId, setSectionId] = useState('');
+  const [gender, setGender] = useState('');
   const [error, setError] = useState('');
 
   const mustJoin = isSuperAdmin && !user?.member_id;
@@ -52,7 +54,7 @@ export default function MembershipPrompt() {
   const submit = async () => {
     setError('');
     try {
-      await joinMutation.mutateAsync(sectionId);
+      await joinMutation.mutateAsync({ entityId: sectionId, gender });
     } catch (failure) {
       setError(extractErrorMessage(failure, 'errors.saveFailed'));
     }
@@ -77,10 +79,18 @@ export default function MembershipPrompt() {
             placeholder={t('membership.choose')}
             sx={{ minWidth: 190 }}
           />
+          <AppSelect
+            value={gender}
+            onChange={setGender}
+            options={memberGenderOptions(t)}
+            allowEmpty
+            placeholder={t('membership.chooseGender')}
+            sx={{ minWidth: 140 }}
+          />
           <Button
             variant="contained"
             onClick={submit}
-            disabled={!sectionId || joinMutation.isPending}
+            disabled={!sectionId || !gender || joinMutation.isPending}
           >
             {t('membership.join')}
           </Button>

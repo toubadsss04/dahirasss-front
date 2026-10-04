@@ -29,7 +29,7 @@ import { ROLES } from '../constants/navigation';
 import { useDomainMutation } from '../hooks/useDomainMutation';
 import { extractErrorMessage } from '../services/apiClient';
 import { fetchDaaras } from '../services/daara.service';
-import { fetchAllMembers } from '../services/members.service';
+import { fetchAllMembers, memberGenderOptions } from '../services/members.service';
 import {
   createUser,
   fetchMemberMatches,
@@ -61,6 +61,7 @@ const EMPTY_FORM = {
   phone: '',
   role: ROLES.ENTITY_MANAGER,
   member_entity_id: '',
+  member_gender: '',
   can_close_exercise: false,
   account_status: 'ACTIVE',
 };
@@ -149,11 +150,14 @@ export default function UsersPage() {
     : null;
   const emailError = editing ? null : validateAccountEmail(form.email, ALLOWED_EMAIL_DOMAIN);
   const showEmailError = Boolean(emailError) && form.email.trim() !== '';
+  const canChooseSection = (!editing && !fromMember) || (editing && !editing.member_id);
+  const createsMember = canChooseSection && Boolean(form.member_entity_id);
 
   const buildCreatePayload = (payload) => ({
     ...payload,
     email: form.email.trim(),
     member_entity_id: fromMember ? null : form.member_entity_id || null,
+    member_gender: createsMember ? form.member_gender : null,
     member_id: fromMember ? (form.member?.id ?? null) : null,
   });
 
@@ -169,7 +173,7 @@ export default function UsersPage() {
     if (editing) {
       const membership =
         !editing.member_id && form.member_entity_id
-          ? { member_entity_id: form.member_entity_id }
+          ? { member_entity_id: form.member_entity_id, member_gender: form.member_gender }
           : {};
       return updateMutation.mutateAsync({ id: editing.id, payload: { ...payload, ...membership } });
     }
@@ -314,7 +318,11 @@ export default function UsersPage() {
         submitLabel={editing ? t('common.actions.save') : t('common.actions.create')}
         maxWidth="sm"
         onClose={() => setFormOpen(false)}
-        submitDisabled={Boolean(emailError) || (fromMember && !form.member)}
+        submitDisabled={
+          Boolean(emailError) ||
+          (fromMember && !form.member) ||
+          (createsMember && !form.member_gender)
+        }
         onSubmit={submit}
       >
         {!editing && (
@@ -402,7 +410,7 @@ export default function UsersPage() {
           fullWidth
         />
 
-        {((!editing && !fromMember) || (editing && !editing.member_id)) && (
+        {canChooseSection && (
           <AppSelect
             label={t('users.form.memberDaara')}
             value={form.member_entity_id}
@@ -410,6 +418,16 @@ export default function UsersPage() {
             options={daaraList.map((daara) => ({ value: daara.id, label: daara.name }))}
             allowEmpty
             placeholder={t('users.form.noMembership')}
+            fullWidth
+          />
+        )}
+        {createsMember && (
+          <AppSelect
+            label={t('common.fields.gender')}
+            value={form.member_gender}
+            onChange={(value) => setForm({ ...form, member_gender: value })}
+            options={memberGenderOptions(t)}
+            required
             fullWidth
           />
         )}

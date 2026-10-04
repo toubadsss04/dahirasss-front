@@ -18,7 +18,7 @@ import {
   PageHeader,
   StatusBadge,
 } from '../components/ui';
-import { memberStatusKey } from '../constants/labels';
+import { memberGenderShortKey, memberStatusKey } from '../constants/labels';
 import { ROUTES, buildPath } from '../constants/routes';
 import { useDomainMutation } from '../hooks/useDomainMutation';
 import { extractErrorMessage } from '../services/apiClient';
@@ -31,17 +31,19 @@ import {
   createMember,
   fetchAllMembers,
   filterMembers,
+  memberGenderOptions,
 } from '../services/members.service';
 import { avatarColor, formatDate, personInitials } from '../utils/format';
 
-const EMPTY_FORM = { first_name: '', last_name: '', phone: '', entity_id: '' };
+const EMPTY_FORM = { first_name: '', last_name: '', phone: '', gender: '', entity_id: '' };
 
 /**
  * List of members with filters and creation.
  *
  * Every account sees and opens every member, whatever their section.
  *
- * The section and status filters are sent to the API, since they change rarely.
+ * The section, status and sex filters are sent to the API, since they change
+ * rarely.
  * The search is not: it runs in the browser over the list already loaded, so
  * typing a name costs no request and never replaces the screen with a loader.
  *
@@ -54,17 +56,19 @@ export default function MembersPage() {
   const [search, setSearch] = useState('');
   const [daaraFilter, setDaaraFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
   const [isFormOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
   const daaras = useQuery({ queryKey: ['daaras'], queryFn: () => fetchDaaras() });
 
   const members = useQuery({
-    queryKey: ['members', 'all', { daaraFilter, statusFilter }],
+    queryKey: ['members', 'all', { daaraFilter, statusFilter, genderFilter }],
     queryFn: () =>
       fetchAllMembers({
         ...categoryFilterParams(daaraFilter),
         status: statusFilter || undefined,
+        gender: genderFilter || undefined,
       }),
   });
   const visibleMembers = useMemo(
@@ -88,6 +92,8 @@ export default function MembersPage() {
     value: daara.id,
     label: daara.name,
   }));
+  const genderOptions = memberGenderOptions(t);
+  const isFormComplete = Boolean(form.first_name.trim() && form.last_name.trim() && form.gender);
 
   return (
     <>
@@ -137,11 +143,20 @@ export default function MembersPage() {
           placeholder={t('common.filters.allStatuses')}
           sx={{ minWidth: 150 }}
         />
+        <AppSelect
+          value={genderFilter}
+          onChange={setGenderFilter}
+          options={genderOptions}
+          allowEmpty
+          placeholder={t('common.filters.allGenders')}
+          sx={{ minWidth: 140 }}
+        />
       </FilterBar>
 
       <DataTable
         columns={[
           { key: 'member', label: t('members.columns.member') },
+          { key: 'gender', label: t('members.columns.gender') },
           { key: 'phone', label: t('members.columns.phone') },
           { key: 'daara', label: t('members.columns.daara') },
           { key: 'joined', label: t('members.columns.joined') },
@@ -177,6 +192,11 @@ export default function MembersPage() {
                 <span style={{ fontWeight: 600 }}>{member.full_name}</span>
               </div>
             </td>
+            <td>
+              {member.gender
+                ? t(memberGenderShortKey(member.gender))
+                : t('common.empty.value')}
+            </td>
             <td className="num">{member.phone || t('common.empty.value')}</td>
             <td>
               <DaaraLabel name={member.entity_name} />
@@ -196,12 +216,14 @@ export default function MembersPage() {
         open={isFormOpen}
         title={t('members.form.title')}
         submitLabel={t('common.actions.create')}
+        submitDisabled={!isFormComplete}
         onClose={() => setFormOpen(false)}
         onSubmit={() =>
           createMutation.mutateAsync({
             first_name: form.first_name.trim(),
             last_name: form.last_name.trim(),
             phone: form.phone.trim() || null,
+            gender: form.gender,
             entity_id: form.entity_id || null,
           })
         }
@@ -220,6 +242,14 @@ export default function MembersPage() {
           onChange={(event) => setForm({ ...form, last_name: event.target.value })}
           size="small"
           required
+        />
+        <AppSelect
+          label={t('common.fields.gender')}
+          value={form.gender}
+          onChange={(value) => setForm({ ...form, gender: value })}
+          options={genderOptions}
+          required
+          fullWidth
         />
         <TextField
           label={t('common.fields.phone')}

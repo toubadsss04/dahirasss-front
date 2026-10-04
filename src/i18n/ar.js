@@ -41,11 +41,13 @@ export default {
       daara: 'الفئة',
       phone: 'الهاتف',
       name: 'الاسم',
+      gender: 'الجنس',
       status: 'الحالة',
     },
     filters: {
       allDaaras: 'كل الفئات',
       allStatuses: 'كل الحالات',
+      allGenders: 'كل الأجناس',
       allTypes: 'كل الأنواع',
       allActions: 'كل الإجراءات',
       allObjects: 'كل العناصر',
@@ -191,6 +193,14 @@ export default {
     memberStatus: {
       ACTIVE: 'نشط',
       INACTIVE: 'غير نشط',
+    },
+    memberGender: {
+      FEMALE: 'أنثى',
+      MALE: 'ذكر',
+    },
+    memberGenderShort: {
+      FEMALE: 'أ',
+      MALE: 'ذ',
     },
     movementType: {
       CONTRIBUTION: 'مساهمة',
@@ -402,6 +412,7 @@ export default {
       member_not_found: 'العضو غير موجود.',
       member_target_daara_not_found: 'فئة الوجهة غير موجودة.',
       member_already_in_daara: 'العضو ينتمي أصلًا إلى هذه الفئة.',
+      member_gender_required: 'جنس العضو إلزامي.',
 
       meeting_not_found: 'اللقاء غير موجود.',
       meeting_already_cancelled: 'هذا اللقاء ملغى بالفعل.',
@@ -525,6 +536,7 @@ export default {
       phone: 'الهاتف',
       daara: 'الفئة',
       joined: 'الانضمام',
+      gender: 'الجنس',
       status: 'الحالة',
     },
     form: {
@@ -582,6 +594,7 @@ export default {
     prompt: 'بصفتك مديرًا عامًا، أنت أيضًا عضو في الدائرة. اختر فئتك لتتمكن من التبرع في اللقاءات.',
     noSection: 'بصفتك مديرًا عامًا، ستكون أيضًا عضوًا في الدائرة. أنشئ فئة أولًا لتختارها.',
     choose: 'فئتك',
+    chooseGender: 'جنسك',
     join: 'انضمام',
     joined: 'أصبحت الآن عضوًا في هذه الفئة.',
   },

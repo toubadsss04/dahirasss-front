@@ -76,10 +76,14 @@ export async function fetchCurrentUser() {
 /**
  * Make the signed-in super administrator a member of a section.
  *
- * @param {string} entityId The section chosen.
+ * @param {{entityId: string, gender: string}} membership The section chosen and
+ *   the sex of the member created.
  * @returns {Promise<object>} The account, now linked to its member.
  */
-export async function joinSection(entityId) {
-  const { data } = await apiClient.post('/auth/me/membership', { entity_id: entityId });
+export async function joinSection({ entityId, gender }) {
+  const { data } = await apiClient.post('/auth/me/membership', {
+    entity_id: entityId,
+    gender,
+  });
   return data;
 }

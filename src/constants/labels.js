@@ -73,6 +73,22 @@ export const entityStatusKey = (status) => `labels.entityStatus.${status}`;
 export const memberStatusKey = (status) => `labels.memberStatus.${status}`;
 
 /**
+ * Key for the sex of a member, written in full.
+ *
+ * @param {string} gender FEMALE or MALE.
+ * @returns {string} The translation key.
+ */
+export const memberGenderKey = (gender) => `labels.memberGender.${gender}`;
+
+/**
+ * Key for the sex of a member as one letter, F or H.
+ *
+ * @param {string} gender FEMALE or MALE.
+ * @returns {string} The translation key.
+ */
+export const memberGenderShortKey = (gender) => `labels.memberGenderShort.${gender}`;
+
+/**
  * Key for an audited action.
  *
  * @param {string} action One of the audit actions.

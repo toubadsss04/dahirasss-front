@@ -10,6 +10,7 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import { TriangleAlert, UserCheck } from 'lucide-react';
 
+import { memberGenderShortKey } from '../../constants/labels';
 import { extractErrorMessage } from '../../services/apiClient';
 import { avatarColor, personInitials } from '../../utils/format';
 
@@ -98,13 +99,28 @@ export default function DuplicateMemberDialog({
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>{name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                    {member.entity_name || t('common.empty.noCategory')}
-                    {member.phone && (
-                      <>
-                        {' · '}
-                        <bdi dir="ltr">{member.phone}</bdi>
-                      </>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      fontSize: 12,
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    <span>
+                      {member.entity_name || t('common.empty.noCategory')}
+                      {member.phone && (
+                        <>
+                          {' · '}
+                          <bdi dir="ltr">{member.phone}</bdi>
+                        </>
+                      )}
+                    </span>
+                    {member.gender && (
+                      <span style={{ fontWeight: 600, flex: '0 0 auto' }}>
+                        {t(memberGenderShortKey(member.gender))}
+                      </span>
                     )}
                   </div>
                 </div>

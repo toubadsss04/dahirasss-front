@@ -10,7 +10,7 @@ import AppSelect from '../components/forms/AppSelect';
 import DaaraLabel from '../components/ui/DaaraLabel';
 import FormDialog from '../components/ui/FormDialog';
 import { ErrorNote, Loader, StatusBadge } from '../components/ui';
-import { memberStatusKey } from '../constants/labels';
+import { memberGenderKey, memberStatusKey } from '../constants/labels';
 import { NO_CATEGORY } from '../constants/members';
 import { ROUTES } from '../constants/routes';
 import { useDomainMutation } from '../hooks/useDomainMutation';
@@ -22,6 +22,7 @@ import {
   fetchMemberHistory,
   fetchMemberMonthly,
   isMemberFormValid,
+  memberGenderOptions,
   toMemberForm,
   toMemberUpdate,
   transferMember,
@@ -123,6 +124,7 @@ export default function MemberDetailPage() {
           <h1 style={{ fontSize: 23 }}>{record.full_name}</h1>
           <div className="md-meta">
             <DaaraLabel name={record.entity_name} />
+            {record.gender && <span className="chip">{t(memberGenderKey(record.gender))}</span>}
             {record.phone && <span className="chip">{record.phone}</span>}
             <StatusBadge
               label={t(memberStatusKey(record.status))}
@@ -293,6 +295,13 @@ export default function MemberDetailPage() {
               onChange={setEditField('last_name')}
               size="small"
               required
+            />
+            <AppSelect
+              label={t('common.fields.gender')}
+              value={editForm.gender}
+              onChange={(value) => setEditForm({ ...editForm, gender: value })}
+              options={memberGenderOptions(t)}
+              fullWidth
             />
             <TextField
               label={t('common.fields.phone')}

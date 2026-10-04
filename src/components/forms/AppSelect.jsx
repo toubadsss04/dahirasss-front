@@ -30,6 +30,7 @@ const MENU_MAX_HEIGHT = 320;
  * @param {string} [props.placeholder] Label of the empty choice.
  * @param {boolean} [props.allowEmpty] Whether the empty choice is offered.
  * @param {boolean} [props.disabled] Whether the field is disabled.
+ * @param {boolean} [props.required] Whether a choice is mandatory, marked on the label.
  * @param {boolean} [props.fullWidth] Whether the field spans its container.
  * @param {'small' | 'medium'} [props.size] Field density.
  * @param {object} [props.sx] Additional styles.
@@ -43,6 +44,7 @@ export default function AppSelect({
   placeholder,
   allowEmpty = false,
   disabled = false,
+  required = false,
   fullWidth = false,
   size = 'small',
   sx,
@@ -52,7 +54,14 @@ export default function AppSelect({
   const labelId = label ? `select-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined;
 
   return (
-    <FormControl ref={anchorRef} size={size} fullWidth={fullWidth} disabled={disabled} sx={sx}>
+    <FormControl
+      ref={anchorRef}
+      size={size}
+      fullWidth={fullWidth}
+      disabled={disabled}
+      required={required}
+      sx={sx}
+    >
       {label && (
         <InputLabel id={labelId} shrink={allowEmpty ? true : undefined}>
           {label}

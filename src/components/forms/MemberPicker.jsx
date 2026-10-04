@@ -3,6 +3,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 
+import { memberGenderShortKey } from '../../constants/labels';
 import { useKeyboardSafeDropdown } from '../../hooks/useKeyboardSafeDropdown';
 import { avatarColor, matchesSearch, personInitials } from '../../utils/format';
 
@@ -11,7 +12,9 @@ import { avatarColor, matchesSearch, personInitials } from '../../utils/format';
  *
  * Typing filters the list by name or phone, word by word and ignoring accents
  * and case, which matters for names such as Aïcha or Ndèye, and also by
- * section when sections are shown. The panel is height capped and scrolls
+ * section when sections are shown. Each option shows the member's sex as F or
+ * H at the right of the line under the name, so two people bearing the same
+ * name can be told apart. The panel is height capped and scrolls
  * internally, so a long list stays usable on a phone.
  *
  * On a phone the field rises to the top of the screen when it opens, and the
@@ -87,6 +90,9 @@ export default function MemberPicker({
       renderOption={(optionProps, member) => {
         const { key, ...rest } = optionProps;
         const name = labelFor(member);
+        const details = [showDaara ? member.entity_name : null, member.phone]
+          .filter(Boolean)
+          .join(' · ');
         return (
           <Box
             component="li"
@@ -110,13 +116,24 @@ export default function MemberPicker({
             >
               {personInitials(member)}
             </Box>
-            <Box sx={{ minWidth: 0 }}>
+            <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
               <Box sx={{ fontWeight: 600, fontSize: 14 }}>{name}</Box>
-              {(member.phone || (showDaara && member.entity_name)) && (
-                <Box sx={{ fontSize: 12, color: 'var(--muted)' }}>
-                  {[showDaara ? member.entity_name : null, member.phone]
-                    .filter(Boolean)
-                    .join(' · ')}
+              {(details || member.gender) && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    fontSize: 12,
+                    color: 'var(--muted)',
+                  }}
+                >
+                  <span>{details}</span>
+                  {member.gender && (
+                    <Box component="span" sx={{ fontWeight: 600, flex: '0 0 auto' }}>
+                      {t(memberGenderShortKey(member.gender))}
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>

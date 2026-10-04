@@ -34,11 +34,13 @@ export default {
       daara: 'Catégorie',
       phone: 'Téléphone',
       name: 'Nom',
+      gender: 'Sexe',
       status: 'Statut',
     },
     filters: {
       allDaaras: 'Toutes les catégories',
       allStatuses: 'Tous les statuts',
+      allGenders: 'Tous les sexes',
       allTypes: 'Tous les types',
       allActions: 'Toutes les actions',
       allObjects: 'Tous les objets',
@@ -184,6 +186,14 @@ export default {
     memberStatus: {
       ACTIVE: 'Actif',
       INACTIVE: 'Inactif',
+    },
+    memberGender: {
+      FEMALE: 'Femme',
+      MALE: 'Homme',
+    },
+    memberGenderShort: {
+      FEMALE: 'F',
+      MALE: 'H',
     },
     movementType: {
       CONTRIBUTION: 'Contribution',
@@ -404,6 +414,7 @@ export default {
       member_not_found: 'Membre introuvable.',
       member_target_daara_not_found: 'Catégorie de destination introuvable.',
       member_already_in_daara: 'Le membre appartient déjà à cette catégorie.',
+      member_gender_required: 'Le sexe du membre est obligatoire.',
 
       meeting_not_found: 'Rencontre introuvable.',
       meeting_already_cancelled: 'Cette rencontre est déjà annulée.',
@@ -530,6 +541,7 @@ export default {
       phone: 'Téléphone',
       daara: 'Catégorie',
       joined: 'Adhésion',
+      gender: 'Sexe',
       status: 'Statut',
     },
     form: {
@@ -586,6 +598,7 @@ export default {
     noSection:
       'En tant que super administrateur, vous serez aussi membre de la Dahira. Créez une première catégorie pour la choisir.',
     choose: 'Votre catégorie',
+    chooseGender: 'Votre sexe',
     join: 'Rejoindre',
     joined: 'Vous êtes maintenant membre de cette catégorie.',
   },
