@@ -1,0 +1,51 @@
+# Render derives the address from the service name, so this one answers on
+# https://dssstouba04.onrender.com
+services:
+  - type: web
+    name: dssstouba04
+    runtime: static
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      # Baked into the bundle at build time. Not a secret: it travels to every
+      # browser that opens the application.
+      - key: VITE_API_BASE_URL
+        value: https://api-dssstouba04.onrender.com/api/v1
+
+    routes:
+      # Client side routing: any address that is not a file falls back to the
+      # shell. Existing files are served first, so the service worker and the
+      # manifest are unaffected.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    headers:
+      # Asset names carry a content hash, so they can be kept forever.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+
+      # The service worker must never be held in a cache, otherwise a new
+      # version could take days to reach a phone that already installed the
+      # application.
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /workbox-*.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+
+      # Some hosts serve this extension as a binary download, which stops the
+      # browser from offering to install the application.
+      - path: /manifest.webmanifest
+        name: Content-Type
+        value: application/manifest+json
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: public, max-age=3600

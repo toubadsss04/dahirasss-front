@@ -1,0 +1,95 @@
+/* Design tokens ported from the reference template.
+   Three theme states are supported: an explicit light or dark choice stamped
+   on the root element, and the system default which relies on the media
+   query alone. Every colour is defined on bare :root first, so no value
+   exists only inside a conditional block. */
+
+:root {
+  --ground: #f4f3ee;
+  --surface: #ffffff;
+  --surface-2: #faf9f5;
+  --ink: #161f1d;
+  --muted: #5d6b66;
+  --faint: #8a958f;
+  --line: #e4e1d8;
+  --line-soft: #eeece4;
+  --pine: #0e3b38;
+  --pine-2: #12726b;
+  --teal: #1a938a;
+  --deep: #0e3b38;
+  --gold: #b98524;
+  --gold-soft: #f3e6c8;
+  --pos: #1f8a5b;
+  --pos-bg: #e6f3ec;
+  --neg: #c0442e;
+  --neg-bg: #f8e7e2;
+  --warn: #b5892a;
+  --sidebar-bg: #15233b;
+  --sidebar-ink: #e9eef7;
+  --sidebar-text: #d3dcea;
+  --sidebar-muted: #8ea0bd;
+  --sidebar-subtle: #a9b7ce;
+  --shadow: 0 1px 2px rgba(18, 40, 37, 0.05), 0 8px 24px -14px rgba(18, 40, 37, 0.22);
+  --shadow-lg: 0 1px 2px rgba(18, 40, 37, 0.06), 0 24px 48px -22px rgba(18, 40, 37, 0.3);
+  --r: 14px;
+  --r-sm: 10px;
+  --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --sidebar-width: 246px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0c1210;
+    --surface: #121b18;
+    --surface-2: #0f1714;
+    --ink: #e9efeb;
+    --muted: #9db0aa;
+    --faint: #72827c;
+    --line: #25322d;
+    --line-soft: #1c2723;
+    --pine: #dff0eb;
+    --pine-2: #57c0b4;
+    --teal: #5fc9bd;
+    --deep: #0a2724;
+    --gold: #d8ab55;
+    --gold-soft: #3a2f16;
+    --pos: #4cc38a;
+    --pos-bg: #12271e;
+    --neg: #e57a62;
+    --neg-bg: #2c1712;
+    --warn: #d8ab55;
+    --sidebar-bg: #0d1626;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 26px -16px rgba(0, 0, 0, 0.7);
+    --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.35), 0 26px 52px -22px rgba(0, 0, 0, 0.8);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0c1210;
+  --surface: #121b18;
+  --surface-2: #0f1714;
+  --ink: #e9efeb;
+  --muted: #9db0aa;
+  --faint: #72827c;
+  --line: #25322d;
+  --line-soft: #1c2723;
+  --pine: #dff0eb;
+  --pine-2: #57c0b4;
+  --teal: #5fc9bd;
+  --deep: #0a2724;
+  --gold: #d8ab55;
+  --gold-soft: #3a2f16;
+  --pos: #4cc38a;
+  --pos-bg: #12271e;
+  --neg: #e57a62;
+  --neg-bg: #2c1712;
+  --warn: #d8ab55;
+  --sidebar-bg: #0d1626;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 26px -16px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.35), 0 26px 52px -22px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}
