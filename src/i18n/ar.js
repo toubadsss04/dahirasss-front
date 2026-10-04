@@ -1466,6 +1466,10 @@ export default {
       returnDamaged: 'التالف',
       returnLost: 'الضائع',
       returnComment: 'تعليق',
+      teamOut: 'فريق التوصيل',
+      teamOutHint: 'اختياري. الفريق الذي يوصل المعدات؛ يُطبع على أمر الطلب لا على الفاتورة.',
+      teamBack: 'فريق الاسترجاع',
+      teamBackHint: 'اختياري. الفريق الذي يسترجع المعدات من الزبون.',
     },
     invoices: {
       title: 'الفواتير',

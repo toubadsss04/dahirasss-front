@@ -15,6 +15,8 @@ import { isReturnValid } from '../../services/rental.service';
  * @param {(rows: Array<object>) => void} props.onRowsChange Called with the new rows.
  * @param {string} props.comment Free comment.
  * @param {(comment: string) => void} props.onCommentChange Called with the new comment.
+ * @param {string} props.team Who brought the material back, free and optional.
+ * @param {(team: string) => void} props.onTeamChange Called with the new team.
  * @param {() => Promise<unknown>} props.onSubmit Called on submission.
  * @param {() => void} props.onClose Called when dismissed.
  * @returns {JSX.Element} The dialog.
@@ -25,6 +27,8 @@ export default function ReturnDialog({
   onRowsChange,
   comment,
   onCommentChange,
+  team,
+  onTeamChange,
   onSubmit,
   onClose,
 }) {
@@ -68,6 +72,16 @@ export default function ReturnDialog({
           </div>
         </div>
       ))}
+      <TextField
+        label={t('rental.orders.teamBack')}
+        helperText={t('rental.orders.teamBackHint')}
+        value={team}
+        onChange={(event) => onTeamChange(event.target.value)}
+        size="small"
+        multiline
+        minRows={2}
+        inputProps={{ maxLength: 500 }}
+      />
       <TextField
         label={t('rental.orders.returnComment')}
         value={comment}

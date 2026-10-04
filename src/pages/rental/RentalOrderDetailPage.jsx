@@ -15,6 +15,7 @@ import {
   Truck,
 } from 'lucide-react';
 
+import CheckOutDialog from '../../components/rental/CheckOutDialog';
 import DocumentTotals from '../../components/rental/DocumentTotals';
 import ReturnDialog from '../../components/rental/ReturnDialog';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -33,8 +34,9 @@ import { useDomainMutation } from '../../hooks/useDomainMutation';
 import { extractErrorMessage } from '../../services/apiClient';
 import { notify } from '../../store/notificationStore';
 import {
-  advanceRentalOrder,
   cancelRentalOrder,
+  checkOutRentalOrder,
+  confirmRentalOrder,
   createRentalInvoice,
   downloadRentalPdf,
   emptyReturn,
@@ -55,10 +57,12 @@ export default function RentalOrderDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { orderId } = useParams();
-  const [step, setStep] = useState(null);
+  const [isConfirming, setConfirming] = useState(false);
+  const [isCheckingOut, setCheckingOut] = useState(false);
   const [isCancelling, setCancelling] = useState(false);
   const [returnRows, setReturnRows] = useState(null);
   const [returnComment, setReturnComment] = useState('');
+  const [returnTeam, setReturnTeam] = useState('');
   const [isDownloading, setDownloading] = useState(false);
 
   const order = useQuery({
@@ -66,7 +70,10 @@ export default function RentalOrderDetailPage() {
     queryFn: () => fetchRentalOrder(orderId),
   });
 
-  const stepMutation = useDomainMutation('rentalOrder', (name) => advanceRentalOrder(orderId, name), {
+  const confirmMutation = useDomainMutation('rentalOrder', () => confirmRentalOrder(orderId), {
+    successMessage: t('rental.orders.stepDone'),
+  });
+  const checkOutMutation = useDomainMutation('rentalOrder', (team) => checkOutRentalOrder(orderId, team), {
     successMessage: t('rental.orders.stepDone'),
   });
   const cancelMutation = useDomainMutation('rentalOrder', (reason) => cancelRentalOrder(orderId, reason), {
@@ -104,11 +111,6 @@ export default function RentalOrderDetailPage() {
     }
   };
 
-  const steps = {
-    confirm: { title: t('rental.orders.confirmTitle'), description: t('rental.orders.confirmDescription') },
-    'check-out': { title: t('rental.orders.checkOutTitle'), description: t('rental.orders.checkOutDescription') },
-  };
-
   return (
     <>
       <button type="button" className="back" onClick={() => navigate(ROUTES.rentalOrders)}>
@@ -126,12 +128,12 @@ export default function RentalOrderDetailPage() {
         actions={
           <>
             {record.status === ORDER_STATUSES.DRAFT && (
-              <Button variant="contained" startIcon={<CheckCircle2 size={15} />} onClick={() => setStep('confirm')}>
+              <Button variant="contained" startIcon={<CheckCircle2 size={15} />} onClick={() => setConfirming(true)}>
                 {t('rental.orders.actions.confirm')}
               </Button>
             )}
             {record.status === ORDER_STATUSES.CONFIRMED && (
-              <Button variant="contained" startIcon={<Truck size={15} />} onClick={() => setStep('check-out')}>
+              <Button variant="contained" startIcon={<Truck size={15} />} onClick={() => setCheckingOut(true)}>
                 {t('rental.orders.actions.checkOut')}
               </Button>
             )}
@@ -142,6 +144,7 @@ export default function RentalOrderDetailPage() {
                 onClick={() => {
                   setReturnRows(emptyReturn(record.lines));
                   setReturnComment('');
+                  setReturnTeam('');
                 }}
               >
                 {t('rental.orders.actions.return')}
@@ -244,6 +247,18 @@ export default function RentalOrderDetailPage() {
               <span style={{ whiteSpace: 'pre-line', textAlign: 'end' }}>{record.remarks}</span>
             </div>
           )}
+          {record.checkout_team && (
+            <div className="r-row" style={{ alignItems: 'flex-start' }}>
+              <span className="l">{t('rental.orders.teamOut')}</span>
+              <span style={{ whiteSpace: 'pre-line', textAlign: 'end' }}>{record.checkout_team}</span>
+            </div>
+          )}
+          {record.return_team && (
+            <div className="r-row" style={{ alignItems: 'flex-start' }}>
+              <span className="l">{t('rental.orders.teamBack')}</span>
+              <span style={{ whiteSpace: 'pre-line', textAlign: 'end' }}>{record.return_team}</span>
+            </div>
+          )}
           {record.cancel_reason && (
             <div className="r-row">
               <span className="l">
@@ -293,12 +308,18 @@ export default function RentalOrderDetailPage() {
       />
 
       <ConfirmDialog
-        open={Boolean(step)}
-        title={step ? steps[step].title : ''}
-        description={step ? steps[step].description : ''}
+        open={isConfirming}
+        title={t('rental.orders.confirmTitle')}
+        description={t('rental.orders.confirmDescription')}
         confirmLabel={t('common.actions.confirm')}
-        onConfirm={() => stepMutation.mutateAsync(step)}
-        onClose={() => setStep(null)}
+        onConfirm={() => confirmMutation.mutateAsync()}
+        onClose={() => setConfirming(false)}
+      />
+
+      <CheckOutDialog
+        open={isCheckingOut}
+        onSubmit={(team) => checkOutMutation.mutateAsync(team)}
+        onClose={() => setCheckingOut(false)}
       />
 
       <ConfirmDialog
@@ -319,7 +340,11 @@ export default function RentalOrderDetailPage() {
           onRowsChange={setReturnRows}
           comment={returnComment}
           onCommentChange={setReturnComment}
-          onSubmit={() => returnMutation.mutateAsync(toReturnPayload(returnRows, returnComment))}
+          team={returnTeam}
+          onTeamChange={setReturnTeam}
+          onSubmit={() =>
+            returnMutation.mutateAsync(toReturnPayload(returnRows, returnComment, returnTeam))
+          }
           onClose={() => setReturnRows(null)}
         />
       )}

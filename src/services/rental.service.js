@@ -257,14 +257,27 @@ export async function updateRentalOrder(orderId, payload) {
 }
 
 /**
- * Move an order one step: confirm it or hand its material out.
+ * Confirm a draft order, holding its material for the period.
  *
  * @param {string} orderId Identifier.
- * @param {'confirm'|'check-out'} step The step.
  * @returns {Promise<object>} The order.
  */
-export async function advanceRentalOrder(orderId, step) {
-  const { data } = await apiClient.post(`/rental/orders/${orderId}/${step}`);
+export async function confirmRentalOrder(orderId) {
+  const { data } = await apiClient.post(`/rental/orders/${orderId}/confirm`);
+  return data;
+}
+
+/**
+ * Hand the material of a confirmed order out.
+ *
+ * @param {string} orderId Identifier.
+ * @param {string} team Who delivers the material; blank when unknown.
+ * @returns {Promise<object>} The order.
+ */
+export async function checkOutRentalOrder(orderId, team) {
+  const { data } = await apiClient.post(`/rental/orders/${orderId}/check-out`, {
+    team: optionalText(team),
+  });
   return data;
 }
 
@@ -690,9 +703,10 @@ export function isReturnValid(rows) {
  *
  * @param {Array<object>} rows The return rows.
  * @param {string} comment Free comment.
+ * @param {string} team Who brought the material back; blank when unknown.
  * @returns {object} The return payload.
  */
-export function toReturnPayload(rows, comment) {
+export function toReturnPayload(rows, comment, team) {
   return {
     lines: rows
       .filter((row) => Number(row.damaged || 0) + Number(row.lost || 0) > 0)
@@ -707,6 +721,7 @@ export function toReturnPayload(rows, comment) {
         };
       }),
     comment: optionalText(comment),
+    team: optionalText(team),
   };
 }
 

@@ -1402,6 +1402,10 @@ export default {
       returnDamaged: 'Endommagés',
       returnLost: 'Perdus',
       returnComment: 'Commentaire',
+      teamOut: 'Intervenants aller',
+      teamOutHint: 'Facultatif. Équipe qui livre le matériel ; imprimé sur le bon, pas sur la facture.',
+      teamBack: 'Intervenants retour',
+      teamBackHint: 'Facultatif. Équipe qui récupère le matériel chez le client.',
     },
     invoices: {
       title: 'Factures',
