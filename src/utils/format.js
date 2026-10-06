@@ -96,6 +96,19 @@ export function formatMoney(amount, options = {}) {
 }
 
 /**
+ * Format a percentage with at most one decimal, e.g. 12,1 %.
+ *
+ * @param {number | string | null | undefined} value Percent, as a number or a decimal string.
+ * @returns {string} The formatted percentage.
+ */
+export function formatPercent(value) {
+  const body = Number(value ?? 0)
+    .toLocaleString(FIGURE_TAG, { maximumFractionDigits: 1 })
+    .replace(/[\u202f\u00a0]/g, ' ');
+  return isolate(`${body} %`);
+}
+
+/**
  * Parse a value into a Date, without shifting a calendar date.
  *
  * A bare YYYY-MM-DD string is parsed by the browser as UTC midnight, which

@@ -3,24 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import Button from '@mui/material/Button';
-import { AlarmClock, ClipboardList, Coins, FileText, Plus, Truck, Wallet } from 'lucide-react';
+import {
+  AlarmClock,
+  ClipboardList,
+  Coins,
+  FileText,
+  Landmark,
+  Plus,
+  Truck,
+  Wallet,
+} from 'lucide-react';
 
+import ArticlePerformanceTable from '../../components/rental/ArticlePerformanceTable';
 import PeriodFilter from '../../components/rental/PeriodFilter';
-import { DataTable, ErrorNote, KpiCard, Loader, Money, PageHeader } from '../../components/ui';
+import { ErrorNote, KpiCard, Loader, PageHeader } from '../../components/ui';
 import { KEYS } from '../../constants/queryKeys';
 import { ROUTES } from '../../constants/routes';
+import { usePermissions } from '../../hooks/usePermissions';
 import { extractErrorMessage } from '../../services/apiClient';
+import { fetchRentalBalance } from '../../services/rental-cash.service';
 import { currentMonthPeriod, fetchRentalDashboard, isValidPeriod } from '../../services/rental.service';
 import { formatDate } from '../../utils/format';
 
 /**
  * Dashboard of the rental business: money over the chosen period, the
- * current month by default, and where the orders stand today.
+ * current month by default, the balance since the start whatever the period,
+ * and where the orders stand today.
  *
  * @returns {JSX.Element} The screen.
  */
 export default function RentalDashboardPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
   const [period, setPeriod] = useState(currentMonthPeriod);
 
@@ -30,6 +44,7 @@ export default function RentalDashboardPage() {
     enabled: isValidPeriod(period),
     placeholderData: keepPreviousData,
   });
+  const balance = useQuery({ queryKey: [KEYS.rentalBalance], queryFn: fetchRentalBalance });
   const data = dashboard.data;
 
   return (
@@ -45,13 +60,15 @@ export default function RentalDashboardPage() {
             : undefined
         }
         actions={
-          <Button
-            variant="contained"
-            startIcon={<Plus size={16} />}
-            onClick={() => navigate(ROUTES.rentalOrderNew)}
-          >
-            {t('rental.orders.new')}
-          </Button>
+          canWrite && (
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={() => navigate(ROUTES.rentalOrderNew)}
+            >
+              {t('rental.orders.new')}
+            </Button>
+          )
         }
       />
 
@@ -82,6 +99,14 @@ export default function RentalDashboardPage() {
               icon={<Wallet size={15} />}
               meta={t('rental.dashboard.outstandingMeta')}
             />
+            {balance.data && (
+              <KpiCard
+                label={t('rental.dashboard.balance')}
+                value={balance.data.balance}
+                icon={<Landmark size={15} />}
+                meta={t('rental.dashboard.balanceMeta')}
+              />
+            )}
           </div>
 
           <div className="section-title">
@@ -108,26 +133,19 @@ export default function RentalDashboardPage() {
           <div className="section-title">
             <h2>{t('rental.dashboard.topTitle')}</h2>
             <div className="line" />
+            <Button
+              size="small"
+              onClick={() =>
+                navigate(`${ROUTES.rentalStatement}?from=${data.date_from}&to=${data.date_to}`)
+              }
+            >
+              {t('rental.performance.seeAll')}
+            </Button>
           </div>
-          <DataTable
-            columns={[
-              { key: 'article', label: t('rental.columns.article') },
-              { key: 'quantity', label: t('rental.columns.quantity'), align: 'right' },
-              { key: 'amount', label: t('rental.columns.amount'), align: 'right' },
-            ]}
+          <ArticlePerformanceTable
             rows={data.top_articles}
+            compact
             emptyMessage={t('rental.dashboard.topEmpty')}
-            renderRow={(row) => (
-              <tr key={row.article_id}>
-                <td>{row.article_name}</td>
-                <td className="r num">
-                  {row.quantity} {row.unit_name}
-                </td>
-                <td className="r">
-                  <Money value={row.net_amount} />
-                </td>
-              </tr>
-            )}
           />
         </>
       )}

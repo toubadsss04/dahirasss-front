@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppShell from '../components/layout/AppShell';
-import { DAHIRA_ROLES, RENTAL_ROLES, ROLES } from '../constants/navigation';
+import { DAHIRA_ROLES, RENTAL_ROLES, RENTAL_WRITE_ROLES, ROLES } from '../constants/navigation';
 import { ROUTES } from '../constants/routes';
 import AuditLogPage from '../pages/AuditLogPage';
 import DaarasPage from '../pages/DaarasPage';
@@ -13,6 +13,7 @@ import FinancialStatementPage from '../pages/FinancialStatementPage';
 import MeetingDetailPage from '../pages/MeetingDetailPage';
 import MeetingsPage from '../pages/MeetingsPage';
 import MemberDetailPage from '../pages/MemberDetailPage';
+import MemberSpacePage from '../pages/MemberSpacePage';
 import MembersPage from '../pages/MembersPage';
 import ProjectDetailPage from '../pages/ProjectDetailPage';
 import ProjectsPage from '../pages/ProjectsPage';
@@ -21,11 +22,13 @@ import LoginPage from '../pages/auth/LoginPage';
 import RentalArticleDetailPage from '../pages/rental/RentalArticleDetailPage';
 import RentalArticlesPage from '../pages/rental/RentalArticlesPage';
 import RentalDashboardPage from '../pages/rental/RentalDashboardPage';
+import RentalExpensesPage from '../pages/rental/RentalExpensesPage';
 import RentalInvoiceDetailPage from '../pages/rental/RentalInvoiceDetailPage';
 import RentalInvoicesPage from '../pages/rental/RentalInvoicesPage';
 import RentalOrderDetailPage from '../pages/rental/RentalOrderDetailPage';
 import RentalOrderFormPage from '../pages/rental/RentalOrderFormPage';
 import RentalOrdersPage from '../pages/rental/RentalOrdersPage';
+import RentalPeriodsPage from '../pages/rental/RentalPeriodsPage';
 import RentalSettingsPage from '../pages/rental/RentalSettingsPage';
 import RentalStatementPage from '../pages/rental/RentalStatementPage';
 import HomeRoute from './HomeRoute';
@@ -36,7 +39,8 @@ import ProtectedRoute from './ProtectedRoute';
  *
  * Each area is opened to the roles the API opens it to: the Dahira to the
  * section managers, the rental business to the rental managers, both to the
- * super administrator. Role restrictions here mirror the API and only shape
+ * super administrator and, for reading only, to the supervisor. A member's
+ * own space opens to any account linked to a member. Role restrictions here mirror the API and only shape
  * the interface. The
  * backend remains the authority, so hiding a route is never the security
  * mechanism.
@@ -51,6 +55,7 @@ export default function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path={ROUTES.dashboard} element={<HomeRoute />} />
+          <Route path={ROUTES.memberSpace} element={<MemberSpacePage />} />
 
           <Route element={<ProtectedRoute roles={DAHIRA_ROLES} />}>
             <Route path={ROUTES.members} element={<MembersPage />} />
@@ -77,13 +82,17 @@ export default function AppRouter() {
           <Route element={<ProtectedRoute roles={RENTAL_ROLES} />}>
             <Route path={ROUTES.rental} element={<RentalDashboardPage />} />
             <Route path={ROUTES.rentalStatement} element={<RentalStatementPage />} />
+            <Route path={ROUTES.rentalExpenses} element={<RentalExpensesPage />} />
+            <Route path={ROUTES.rentalPeriods} element={<RentalPeriodsPage />} />
             <Route path={ROUTES.rentalArticles} element={<RentalArticlesPage />} />
             <Route path={ROUTES.rentalArticleDetail} element={<RentalArticleDetailPage />} />
             <Route path={ROUTES.rentalSettings} element={<RentalSettingsPage />} />
             <Route path={ROUTES.rentalOrders} element={<RentalOrdersPage />} />
-            <Route path={ROUTES.rentalOrderNew} element={<RentalOrderFormPage />} />
+            <Route element={<ProtectedRoute roles={RENTAL_WRITE_ROLES} />}>
+              <Route path={ROUTES.rentalOrderNew} element={<RentalOrderFormPage />} />
+              <Route path={ROUTES.rentalOrderEdit} element={<RentalOrderFormPage />} />
+            </Route>
             <Route path={ROUTES.rentalOrderDetail} element={<RentalOrderDetailPage />} />
-            <Route path={ROUTES.rentalOrderEdit} element={<RentalOrderFormPage />} />
             <Route path={ROUTES.rentalInvoices} element={<RentalInvoicesPage />} />
             <Route path={ROUTES.rentalInvoiceDetail} element={<RentalInvoiceDetailPage />} />
           </Route>

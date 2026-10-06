@@ -26,6 +26,7 @@ import { ARTICLE_SORTS, RENTAL_PAGE_SIZE } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDomainMutation } from '../../hooks/useDomainMutation';
+import { usePermissions } from '../../hooks/usePermissions';
 import { extractErrorMessage } from '../../services/apiClient';
 import {
   createRentalArticle,
@@ -47,6 +48,7 @@ const ACTIVE_FILTERS = { ACTIVE: 'true', INACTIVE: 'false' };
  */
 export default function RentalArticlesPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -98,13 +100,15 @@ export default function RentalArticlesPage() {
         title={t('rental.articles.title')}
         subtitle={t('rental.articles.subtitle', { count: total })}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<Plus size={16} />}
-            onClick={() => setForm(emptyArticleForm(unitOptions[0]?.value ?? ''))}
-          >
-            {t('rental.articles.new')}
-          </Button>
+          canWrite && (
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={() => setForm(emptyArticleForm(unitOptions[0]?.value ?? ''))}
+            >
+              {t('rental.articles.new')}
+            </Button>
+          )
         }
       />
 

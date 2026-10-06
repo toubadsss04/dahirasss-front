@@ -152,6 +152,11 @@ export default function UsersPage() {
   const showEmailError = Boolean(emailError) && form.email.trim() !== '';
   const canChooseSection = (!editing && !fromMember) || (editing && !editing.member_id);
   const createsMember = canChooseSection && Boolean(form.member_entity_id);
+  const isMemberRole = form.role === ROLES.MEMBER;
+  const hasMemberLink = editing
+    ? Boolean(editing.member_id) || Boolean(form.member_entity_id)
+    : fromMember ? Boolean(form.member) : Boolean(form.member_entity_id);
+  const missingMemberLink = isMemberRole && !hasMemberLink;
 
   const buildCreatePayload = (payload) => ({
     ...payload,
@@ -321,7 +326,8 @@ export default function UsersPage() {
         submitDisabled={
           Boolean(emailError) ||
           (fromMember && !form.member) ||
-          (createsMember && !form.member_gender)
+          (createsMember && !form.member_gender) ||
+          missingMemberLink
         }
         onSubmit={submit}
       >
@@ -405,8 +411,17 @@ export default function UsersPage() {
           options={[
             { value: ROLES.ENTITY_MANAGER, label: t(roleKey(ROLES.ENTITY_MANAGER)) },
             { value: ROLES.RENTAL_MANAGER, label: t(roleKey(ROLES.RENTAL_MANAGER)) },
+            { value: ROLES.SUPERVISOR, label: t(roleKey(ROLES.SUPERVISOR)) },
+            { value: ROLES.MEMBER, label: t(roleKey(ROLES.MEMBER)) },
             { value: ROLES.SUPER_ADMIN, label: t(roleKey(ROLES.SUPER_ADMIN)) },
           ]}
+          helperText={
+            isMemberRole
+              ? t(missingMemberLink ? 'users.form.memberRoleNeedsLink' : 'users.form.memberRoleHint')
+              : form.role === ROLES.SUPERVISOR
+                ? t('users.form.supervisorHint')
+                : undefined
+          }
           fullWidth
         />
 

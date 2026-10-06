@@ -41,6 +41,21 @@ export const PRICING_MODES = {
   PER_DAY: 'PER_DAY',
 };
 
+/** What a line of an order sells: an article of the catalogue or a service. */
+export const LINE_KINDS = {
+  ARTICLE: 'ARTICLE',
+  SERVICE: 'SERVICE',
+};
+
+/** Services billed on an order. OTHER carries its own wording. */
+export const SERVICE_TYPES = {
+  TRANSPORT: 'TRANSPORT',
+  OTHER: 'OTHER',
+};
+
+/** Longest grace, in days, an order or the settings may give before lateness. */
+export const MAX_GRACE_DAYS = 60;
+
 /** Stock movements typed by hand. Check-outs and returns come from an order. */
 export const MANUAL_MOVEMENTS = [
   'ENTRY',

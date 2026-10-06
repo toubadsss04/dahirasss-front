@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +7,7 @@ import { ROUTES } from '../../constants/routes';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useScrollToTopOnNavigation } from '../../hooks/useScrollToTopOnNavigation';
 import { useUiStore } from '../../store/uiStore';
+import { playOpeningSoundIfNeeded } from '../../utils/soundService';
 import LanguageSwitcher from './LanguageSwitcher';
 import MembershipPrompt from './MembershipPrompt';
 import Sidebar from './Sidebar';
@@ -31,6 +33,11 @@ function resolveTitleKey(pathname) {
 /**
  * Application frame: navigation rail, top bar and routed content.
  *
+ * The opening chime owed by a sign-in is played here, once, whatever home
+ * page the role lands on: the Dahira dashboard, the rental dashboard or a
+ * member's own space. The sign-in screen leaves word and this reads it once,
+ * so later visits stay silent.
+ *
  * @returns {JSX.Element} The shell.
  */
 export default function AppShell() {
@@ -41,6 +48,10 @@ export default function AppShell() {
   const isSidebarOpen = useUiStore((state) => state.isSidebarOpen);
   const closeSidebar = useUiStore((state) => state.closeSidebar);
   useScrollToTopOnNavigation();
+
+  useEffect(() => {
+    playOpeningSoundIfNeeded();
+  }, []);
 
   return (
     <div className={isSidebarOpen ? 'app open' : 'app'}>

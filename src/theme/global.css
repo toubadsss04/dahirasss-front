@@ -465,6 +465,33 @@ img {
   border-radius: var(--r);
 }
 
+.tbl-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tbl-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.tbl-scroll tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+}
+
+.th-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+  border-radius: 4px;
+}
+
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1290,6 +1317,20 @@ tr.clickable:hover td {
   border-bottom: none;
 }
 
+.order-line .line-main {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr);
+  gap: 10px;
+}
+
+.order-line.service {
+  grid-template-columns: minmax(0, 5fr) minmax(110px, 1.2fr) auto;
+}
+
+.order-line.service .line-main {
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 4fr);
+}
+
 .order-line .meta {
   grid-column: 1 / -1;
   font-size: 12px;
@@ -1306,6 +1347,10 @@ tr.clickable:hover td {
 
   .order-line > :first-child {
     grid-column: 1 / -1;
+  }
+
+  .order-line.service .line-main {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -18,6 +18,7 @@ export const ROUTES = {
   financialJournal: '/journal-financier',
   auditLog: '/journal-audit',
   users: '/utilisateurs',
+  memberSpace: '/mon-espace',
   rental: '/location',
   rentalArticles: '/location/articles',
   rentalArticleDetail: '/location/articles/:articleId',
@@ -29,6 +30,8 @@ export const ROUTES = {
   rentalInvoices: '/location/factures',
   rentalInvoiceDetail: '/location/factures/:invoiceId',
   rentalStatement: '/location/etat-financier',
+  rentalExpenses: '/location/depenses',
+  rentalPeriods: '/location/clotures',
 };
 
 /**

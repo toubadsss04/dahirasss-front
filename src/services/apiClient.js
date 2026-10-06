@@ -40,7 +40,9 @@ export function setAccessToken(token) {
 /**
  * Register the callback invoked when the API rejects the current session.
  *
- * @param {() => void} handler Called once the session is no longer valid.
+ * @param {(code: string | null) => void} handler Called once the session is no
+ *   longer valid, with the refusal code when the server gave one, such as
+ *   session_evicted for a member signed out by the cap on connections.
  */
 export function setUnauthorizedHandler(handler) {
   onUnauthorized = handler;
@@ -99,6 +101,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    let code = response.data?.code ?? null;
     if (!config.sessionRenewed && sessionRefresher) {
       config.sessionRenewed = true;
       try {
@@ -110,11 +113,12 @@ apiClient.interceptors.response.use(
         if (refreshError.response?.status !== 401) {
           return Promise.reject(error);
         }
+        code = refreshError.response.data?.code ?? code;
       }
     }
 
     if (onUnauthorized) {
-      onUnauthorized();
+      onUnauthorized(code);
     }
     return Promise.reject(error);
   },

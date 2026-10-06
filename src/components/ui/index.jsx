@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Inbox, TriangleAlert } from 'lucide-react';
+import Tooltip from '@mui/material/Tooltip';
+import { Inbox, Info, TriangleAlert } from 'lucide-react';
 
 import { formatMoney } from '../../utils/format';
 
@@ -184,16 +185,20 @@ export function Callout({ children, warn = false }) {
  * Table wrapper that scrolls horizontally on narrow screens.
  *
  * The page body never scrolls sideways, only the table inside its own box.
+ * With maxHeight the body also scrolls vertically under a sticky header, so a
+ * list that grows over time keeps the rest of the page in reach.
  *
  * @param {object} props Component props.
- * @param {Array<{key: string, label: string, align?: string}>} props.columns Column definitions.
+ * @param {Array<{key: string, label: string, align?: string, hint?: string}>} props.columns
+ *   Column definitions. A hint shows as a tooltip on an info icon next to the label.
  * @param {Array<object>} props.rows Data rows.
  * @param {(row: object) => React.ReactNode} props.renderRow Row renderer.
  * @param {string} [props.emptyMessage] Shown when there is no row.
  * @param {React.ReactNode} [props.footer] Optional footer row.
+ * @param {number} [props.maxHeight] Height in pixels past which the body scrolls.
  * @returns {JSX.Element} The table.
  */
-export function DataTable({ columns, rows, renderRow, emptyMessage, footer }) {
+export function DataTable({ columns, rows, renderRow, emptyMessage, footer, maxHeight }) {
   const { t } = useTranslation();
   if (!rows || rows.length === 0) {
     return (
@@ -205,13 +210,25 @@ export function DataTable({ columns, rows, renderRow, emptyMessage, footer }) {
 
   return (
     <div className="card">
-      <div className="tbl-wrap">
+      <div
+        className={maxHeight ? 'tbl-wrap tbl-scroll' : 'tbl-wrap'}
+        style={maxHeight ? { maxHeight } : undefined}
+      >
         <table>
           <thead>
             <tr>
               {columns.map((column) => (
                 <th key={column.key} className={column.align === 'right' ? 'r' : undefined}>
-                  {column.label}
+                  {column.hint ? (
+                    <Tooltip title={column.hint} arrow>
+                      <span className="th-hint" tabIndex={0} aria-label={column.hint}>
+                        {column.label}
+                        <Info size={12} aria-hidden="true" />
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    column.label
+                  )}
                 </th>
               ))}
             </tr>

@@ -73,7 +73,7 @@ export default function MeetingDetailPage() {
   const navigate = useNavigate();
   const formRef = useRef(null);
   const amountRef = useRef(null);
-  const { canCorrectProjectPayment, canCancelProjectPayments } = usePermissions();
+  const { canCorrectProjectPayment, canCancelProjectPayments, canWrite } = usePermissions();
 
   const [member, setMember] = useState(null);
   const [lines, setLines] = useState([]);
@@ -197,8 +197,9 @@ export default function MeetingDetailPage() {
   };
 
   const canEditRow = (row) =>
-    row.target === 'GAMOU' || canCorrectProjectPayment(row);
-  const canCancelRow = (row) => row.target === 'GAMOU' || canCancelProjectPayments;
+    canWrite && (row.target === 'GAMOU' || canCorrectProjectPayment(row));
+  const canCancelRow = (row) =>
+    canWrite && (row.target === 'GAMOU' || canCancelProjectPayments);
   const canUpdate =
     Boolean(editing) && isValidAmount(editAmount) && Number(editAmount) !== editing.amount;
 
@@ -303,7 +304,7 @@ export default function MeetingDetailPage() {
         />
       </div>
 
-      <div className="split">
+      <div className={canWrite ? 'split' : undefined}>
         <div>
           <DataTable
             columns={[
@@ -430,141 +431,143 @@ export default function MeetingDetailPage() {
           />
         </div>
 
-        <div ref={formRef} className="card" style={{ padding: 18, alignSelf: 'start' }}>
-          <div className="section-title" style={{ margin: '0 0 12px' }}>
-            <h2>{editing ? t('meetingDetail.editTitle') : t('meetingDetail.add')}</h2>
-            <div className="line" />
-          </div>
+        {canWrite && (
+          <div ref={formRef} className="card" style={{ padding: 18, alignSelf: 'start' }}>
+            <div className="section-title" style={{ margin: '0 0 12px' }}>
+              <h2>{editing ? t('meetingDetail.editTitle') : t('meetingDetail.add')}</h2>
+              <div className="line" />
+            </div>
 
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
-          >
-            {formError && <Alert severity="error">{formError}</Alert>}
-
-            {editing ? (
-              <>
-                <TextField
-                  label={t('common.member')}
-                  value={`${editing.member_name} · ${editing.target_label}`}
-                  size="small"
-                  helperText={t('meetingDetail.memberLocked')}
-                  disabled
-                />
-                <TextField
-                  label={t('common.fields.amount')}
-                  value={editAmount}
-                  onChange={(event) =>
-                    setEditAmount(event.target.value.replace(/[^0-9]/g, ''))
-                  }
-                  inputRef={amountRef}
-                  size="small"
-                  slotProps={{ htmlInput: { inputMode: 'numeric' } }}
-                />
-              </>
-            ) : (
-              <>
-                <MemberPicker
-                  members={sortedMembers}
-                  value={member}
-                  onChange={chooseMember}
-                  label={t('common.member')}
-                  helperText={
-                    member && potOptions.length === 0
-                      ? t('meetingDetail.allPotsGiven')
-                      : t('meetingDetail.pickMember')
-                  }
-                  disabled={!isMeetingActive}
-                  showDaara
-                  groupBySection
-                />
-
-                {lines.map((line) => (
-                  <div
-                    key={line.id}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 110px auto', gap: 8 }}
-                  >
-                    <AppSelect
-                      label={t('meetingDetail.pot')}
-                      value={line.targetKey}
-                      onChange={(value) => updateLine(line.id, { targetKey: value })}
-                      options={potOptions.filter(
-                        (option) =>
-                          option.value === line.targetKey || !usedKeys.has(option.value),
-                      )}
-                      fullWidth
-                    />
-                    <TextField
-                      label={t('common.fields.amount')}
-                      value={line.amount}
-                      onChange={(event) =>
-                        updateLine(line.id, {
-                          amount: event.target.value.replace(/[^0-9]/g, ''),
-                        })
-                      }
-                      size="small"
-                      slotProps={{ htmlInput: { inputMode: 'numeric' } }}
-                      placeholder={t('meetingDetail.amountPlaceholder')}
-                    />
-                    <Tooltip title={t('meetingDetail.removePot')}>
-                      <span>
-                        <IconButton
-                          aria-label={t('meetingDetail.removePot')}
-                          onClick={() =>
-                            setLines((current) => current.filter((item) => item.id !== line.id))
-                          }
-                          disabled={lines.length === 1}
-                        >
-                          <Trash2 size={16} />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </div>
-                ))}
-
-                {member && (
-                  <Button
-                    color="inherit"
-                    startIcon={<Plus size={16} />}
-                    onClick={() => setLines((current) => [...current, newLine(nextFreeKey)])}
-                    disabled={!canAddLine || !isMeetingActive}
-                    sx={{ alignSelf: 'flex-start' }}
-                  >
-                    {t('meetingDetail.addPot')}
-                  </Button>
-                )}
-              </>
-            )}
-
-            <Button
-              type="submit"
-              variant="contained"
-              startIcon={editing ? <Pencil size={16} /> : <Plus size={16} />}
-              disabled={
-                isBusy ||
-                !isMeetingActive ||
-                (editing ? !canUpdate : !batch || batch.lines.length === 0)
-              }
+            <form
+              onSubmit={handleSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
             >
-              {editing ? t('meetingDetail.update') : t('meetingDetail.submit')}
-            </Button>
+              {formError && <Alert severity="error">{formError}</Alert>}
 
-            {(editing || member) && (
-              <Button color="inherit" onClick={resetForm} disabled={isBusy}>
-                {editing ? t('meetingDetail.stopEditing') : t('common.actions.cancel')}
+              {editing ? (
+                <>
+                  <TextField
+                    label={t('common.member')}
+                    value={`${editing.member_name} · ${editing.target_label}`}
+                    size="small"
+                    helperText={t('meetingDetail.memberLocked')}
+                    disabled
+                  />
+                  <TextField
+                    label={t('common.fields.amount')}
+                    value={editAmount}
+                    onChange={(event) =>
+                      setEditAmount(event.target.value.replace(/[^0-9]/g, ''))
+                    }
+                    inputRef={amountRef}
+                    size="small"
+                    slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                  />
+                </>
+              ) : (
+                <>
+                  <MemberPicker
+                    members={sortedMembers}
+                    value={member}
+                    onChange={chooseMember}
+                    label={t('common.member')}
+                    helperText={
+                      member && potOptions.length === 0
+                        ? t('meetingDetail.allPotsGiven')
+                        : t('meetingDetail.pickMember')
+                    }
+                    disabled={!isMeetingActive}
+                    showDaara
+                    groupBySection
+                  />
+
+                  {lines.map((line) => (
+                    <div
+                      key={line.id}
+                      style={{ display: 'grid', gridTemplateColumns: '1fr 110px auto', gap: 8 }}
+                    >
+                      <AppSelect
+                        label={t('meetingDetail.pot')}
+                        value={line.targetKey}
+                        onChange={(value) => updateLine(line.id, { targetKey: value })}
+                        options={potOptions.filter(
+                          (option) =>
+                            option.value === line.targetKey || !usedKeys.has(option.value),
+                        )}
+                        fullWidth
+                      />
+                      <TextField
+                        label={t('common.fields.amount')}
+                        value={line.amount}
+                        onChange={(event) =>
+                          updateLine(line.id, {
+                            amount: event.target.value.replace(/[^0-9]/g, ''),
+                          })
+                        }
+                        size="small"
+                        slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                        placeholder={t('meetingDetail.amountPlaceholder')}
+                      />
+                      <Tooltip title={t('meetingDetail.removePot')}>
+                        <span>
+                          <IconButton
+                            aria-label={t('meetingDetail.removePot')}
+                            onClick={() =>
+                              setLines((current) => current.filter((item) => item.id !== line.id))
+                            }
+                            disabled={lines.length === 1}
+                          >
+                            <Trash2 size={16} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </div>
+                  ))}
+
+                  {member && (
+                    <Button
+                      color="inherit"
+                      startIcon={<Plus size={16} />}
+                      onClick={() => setLines((current) => [...current, newLine(nextFreeKey)])}
+                      disabled={!canAddLine || !isMeetingActive}
+                      sx={{ alignSelf: 'flex-start' }}
+                    >
+                      {t('meetingDetail.addPot')}
+                    </Button>
+                  )}
+                </>
+              )}
+
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={editing ? <Pencil size={16} /> : <Plus size={16} />}
+                disabled={
+                  isBusy ||
+                  !isMeetingActive ||
+                  (editing ? !canUpdate : !batch || batch.lines.length === 0)
+                }
+              >
+                {editing ? t('meetingDetail.update') : t('meetingDetail.submit')}
               </Button>
-            )}
-          </form>
 
-          <div className="callout">
-            <span className="ic">
-              <Lock size={20} />
-            </span>
-            <span className="tx">
-              <Trans i18nKey="meetingDetail.notice" components={{ b: <b /> }} />
-            </span>
+              {(editing || member) && (
+                <Button color="inherit" onClick={resetForm} disabled={isBusy}>
+                  {editing ? t('meetingDetail.stopEditing') : t('common.actions.cancel')}
+                </Button>
+              )}
+            </form>
+
+            <div className="callout">
+              <span className="ic">
+                <Lock size={20} />
+              </span>
+              <span className="tx">
+                <Trans i18nKey="meetingDetail.notice" components={{ b: <b /> }} />
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <ConfirmDialog

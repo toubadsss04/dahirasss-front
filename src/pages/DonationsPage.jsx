@@ -26,6 +26,7 @@ import { GAMOU_POT, POT_FILTERS } from '../constants/finance';
 import { operationStatusKey } from '../constants/labels';
 import { useDomainMutation } from '../hooks/useDomainMutation';
 import { usePotOptions } from '../hooks/usePotOptions';
+import { usePermissions } from '../hooks/usePermissions';
 import { extractErrorMessage } from '../services/apiClient';
 import {
   cancelDonation,
@@ -64,6 +65,7 @@ import { amountValue, optionalText } from '../utils/formChanges';
 export default function DonationsPage() {
   const { t } = useTranslation();
   const selected = useExerciseStore((state) => state.selected());
+  const { canWrite } = usePermissions();
   const exerciseId = selected?.id;
 
   const [isFormOpen, setFormOpen] = useState(false);
@@ -158,9 +160,11 @@ export default function DonationsPage() {
         title={t('donations.title')}
         subtitle={`${selected.name} · ${t('donations.subtitle', { count: rows.length })}`}
         actions={
-          <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
-            {t('donations.add')}
-          </Button>
+          canWrite && (
+            <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
+              {t('donations.add')}
+            </Button>
+          )
         }
       />
 
@@ -243,7 +247,7 @@ export default function DonationsPage() {
                 <Money value={row.amount} tone={!cancelled} strike={cancelled} />
               </td>
               <td className="r" style={{ width: '1%' }}>
-                {!cancelled && (
+                {!cancelled && canWrite && (
                   <div
                     style={{
                       display: 'flex',

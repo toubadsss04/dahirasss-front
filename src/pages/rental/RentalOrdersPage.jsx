@@ -26,6 +26,7 @@ import { KEYS } from '../../constants/queryKeys';
 import { ORDER_STATUS_TONES, ORDER_STATUSES, RENTAL_PAGE_SIZE } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { usePermissions } from '../../hooks/usePermissions';
 import { extractErrorMessage } from '../../services/apiClient';
 import { fetchRentalOrders } from '../../services/rental.service';
 import { formatDate } from '../../utils/format';
@@ -38,6 +39,7 @@ import { formatDate } from '../../utils/format';
  */
 export default function RentalOrdersPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -67,13 +69,15 @@ export default function RentalOrdersPage() {
         title={t('rental.orders.title')}
         subtitle={t('rental.orders.subtitle', { count: total })}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<Plus size={16} />}
-            onClick={() => navigate(ROUTES.rentalOrderNew)}
-          >
-            {t('rental.orders.new')}
-          </Button>
+          canWrite && (
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={() => navigate(ROUTES.rentalOrderNew)}
+            >
+              {t('rental.orders.new')}
+            </Button>
+          )
         }
       />
 
@@ -163,7 +167,16 @@ export default function RentalOrdersPage() {
                     tone={ORDER_STATUS_TONES[order.status]}
                   />
                   {order.is_late && (
-                    <div style={{ fontSize: 12, color: 'var(--neg)' }}>{t('rental.orders.late')}</div>
+                    <div style={{ marginTop: 4 }}>
+                      <span className="badge b-cancel">
+                        {t('rental.orders.lateDays', { count: order.late_days })}
+                      </span>
+                    </div>
+                  )}
+                  {order.awaiting_checkout && (
+                    <div style={{ marginTop: 4 }}>
+                      <span className="badge b-draft">{t('rental.orders.awaitingCheckout')}</span>
+                    </div>
                   )}
                 </td>
                 <td className="r">

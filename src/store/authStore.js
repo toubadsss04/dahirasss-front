@@ -5,12 +5,17 @@ import {
   setSessionRefresher,
   setUnauthorizedHandler,
 } from '../services/apiClient';
+import i18n from '../i18n';
 import * as authService from '../services/auth.service';
 import {
   clearRefreshToken,
   readRefreshToken,
   writeRefreshToken,
 } from '../services/tokenStorage';
+import { notify } from './notificationStore';
+
+/** Refusal sent when a member was signed out because too many were connected. */
+const EVICTED_CODE = 'session_evicted';
 
 /**
  * Authentication state.
@@ -155,6 +160,9 @@ export const useAuthStore = create((set, get) => ({
 
 setSessionRefresher(() => useAuthStore.getState().renewSession());
 
-setUnauthorizedHandler(() => {
+setUnauthorizedHandler((code) => {
+  if (code === EVICTED_CODE) {
+    notify(i18n.t(`errors.api.${EVICTED_CODE}`), 'warning');
+  }
   useAuthStore.getState().clearSession();
 });

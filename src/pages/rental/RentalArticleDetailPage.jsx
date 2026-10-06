@@ -15,6 +15,7 @@ import { KEYS } from '../../constants/queryKeys';
 import { MANUAL_MOVEMENTS, RENTAL_PAGE_SIZE } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { useDomainMutation } from '../../hooks/useDomainMutation';
+import { usePermissions } from '../../hooks/usePermissions';
 import { extractErrorMessage } from '../../services/apiClient';
 import {
   articleToForm,
@@ -44,6 +45,7 @@ const STOCK_BUCKETS = ['owned', 'available', 'reserved', 'free_now', 'out', 'dam
  */
 export default function RentalArticleDetailPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
   const { articleId } = useParams();
   const [form, setForm] = useState(null);
@@ -107,25 +109,27 @@ export default function RentalArticleDetailPage() {
           .filter(Boolean)
           .join(' · ')}
         actions={
-          <>
-            <Button
-              variant="contained"
-              startIcon={<ArrowLeftRight size={15} />}
-              onClick={() =>
-                setMovement({ type: MANUAL_MOVEMENTS[0], quantity: '', date: todayInDakar(), reason: '' })
-              }
-            >
-              {t('rental.stock.record')}
-            </Button>
-            <Button color="inherit" startIcon={<Pencil size={15} />} onClick={() => setForm(articleToForm(record))}>
-              {t('common.actions.edit')}
-            </Button>
-            {!record.is_used && (
-              <Button color="inherit" startIcon={<Trash2 size={15} />} onClick={() => setDeleting(true)}>
-                {t('common.actions.delete')}
+          canWrite && (
+            <>
+              <Button
+                variant="contained"
+                startIcon={<ArrowLeftRight size={15} />}
+                onClick={() =>
+                  setMovement({ type: MANUAL_MOVEMENTS[0], quantity: '', date: todayInDakar(), reason: '' })
+                }
+              >
+                {t('rental.stock.record')}
               </Button>
-            )}
-          </>
+              <Button color="inherit" startIcon={<Pencil size={15} />} onClick={() => setForm(articleToForm(record))}>
+                {t('common.actions.edit')}
+              </Button>
+              {!record.is_used && (
+                <Button color="inherit" startIcon={<Trash2 size={15} />} onClick={() => setDeleting(true)}>
+                  {t('common.actions.delete')}
+                </Button>
+              )}
+            </>
+          )
         }
       />
 

@@ -21,6 +21,7 @@ import {
 import { memberGenderShortKey, memberStatusKey } from '../constants/labels';
 import { ROUTES, buildPath } from '../constants/routes';
 import { useDomainMutation } from '../hooks/useDomainMutation';
+import { usePermissions } from '../hooks/usePermissions';
 import { extractErrorMessage } from '../services/apiClient';
 import {
   categoryFilterOptions,
@@ -51,6 +52,7 @@ const EMPTY_FORM = { first_name: '', last_name: '', phone: '', gender: '', entit
  */
 export default function MembersPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
@@ -101,9 +103,11 @@ export default function MembersPage() {
         title={t('members.title')}
         subtitle={t('members.subtitle', { count: members.data.length })}
         actions={
-          <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
-            {t('members.add')}
-          </Button>
+          canWrite && (
+            <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
+              {t('members.add')}
+            </Button>
+          )
         }
       />
 

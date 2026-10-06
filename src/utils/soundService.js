@@ -23,7 +23,7 @@ let reserved = false;
 /**
  * Where the sign-in leaves word that the sound is owed.
  *
- * The chime belongs to arriving at the dashboard, not to the moment the
+ * The chime belongs to arriving at the home page, not to the moment the
  * password is accepted, so the two screens have to agree across a navigation.
  * Session storage rather than a module variable: it survives a full reload, and
  * it is gone the next time the application is opened, so a restored session
@@ -124,7 +124,7 @@ export async function playOpeningSound() {
 /**
  * Record that a sign-in has just happened.
  *
- * Called by the sign-in screen, read once by the dashboard.
+ * Called by the sign-in screen, read once by the application frame on arrival.
  */
 export function setLoginFlag() {
   try {

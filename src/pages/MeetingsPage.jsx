@@ -20,6 +20,7 @@ import {
 import { operationStatusKey } from '../constants/labels';
 import { ROUTES, buildPath } from '../constants/routes';
 import { useDomainMutation } from '../hooks/useDomainMutation';
+import { usePermissions } from '../hooks/usePermissions';
 import { extractErrorMessage } from '../services/apiClient';
 import { createMeeting, fetchMeetings } from '../services/finance.service';
 import { useExerciseStore } from '../store/exerciseStore';
@@ -36,6 +37,7 @@ import { formatDate, todayInDakar } from '../utils/format';
  */
 export default function MeetingsPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
   const selected = useExerciseStore((state) => state.selected());
   const exerciseId = selected?.id;
@@ -82,9 +84,11 @@ export default function MeetingsPage() {
         title={t('meetings.title')}
         subtitle={`${selected.name} · ${t('meetings.subtitle')}`}
         actions={
-          <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
-            {t('meetings.add')}
-          </Button>
+          canWrite && (
+            <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
+              {t('meetings.add')}
+            </Button>
+          )
         }
       />
 

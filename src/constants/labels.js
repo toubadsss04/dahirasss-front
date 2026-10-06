@@ -145,6 +145,14 @@ export const rentalInvoiceStatusKey = (status) => `labels.rentalInvoiceStatus.${
 export const pricingModeKey = (mode) => `labels.pricingMode.${mode}`;
 
 /**
+ * Key for a kind of service billed on an order.
+ *
+ * @param {string} type TRANSPORT or OTHER.
+ * @returns {string} The translation key.
+ */
+export const serviceTypeKey = (type) => `labels.serviceType.${type}`;
+
+/**
  * Key for a kind of stock movement.
  *
  * @param {string} type Movement type, as the API names it.

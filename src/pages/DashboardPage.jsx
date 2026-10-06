@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Coins, HandCoins, Receipt, Scale } from 'lucide-react';
@@ -18,7 +17,6 @@ import { extractErrorMessage } from '../services/apiClient';
 import { fetchDashboard } from '../services/reporting.service';
 import { useExerciseStore } from '../store/exerciseStore';
 import { formatMoney, formatMonthShort } from '../utils/format';
-import { playOpeningSoundIfNeeded } from '../utils/soundService';
 
 /**
  * Monthly bar chart of collections against expenses.
@@ -92,12 +90,6 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const selected = useExerciseStore((state) => state.selected());
 
-  // The chime belongs to arriving here after signing in, not to every visit.
-  // The sign-in screen leaves word, this reads it once and forgets it, so
-  // coming back to the dashboard later stays silent.
-  useEffect(() => {
-    playOpeningSoundIfNeeded();
-  }, []);
   const exerciseId = selected?.id;
 
   const { data, isLoading, error } = useQuery({

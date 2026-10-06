@@ -52,6 +52,12 @@ export const KEYS = {
   rentalOrder: 'rental-order',
   rentalInvoices: 'rental-invoices',
   rentalInvoice: 'rental-invoice',
+  myAccount: 'my-account',
+  rentalBalance: 'rental-balance',
+  rentalSettings: 'rental-settings',
+  rentalPeriods: 'rental-periods',
+  rentalExpenses: 'rental-expenses',
+  rentalExpenseCategories: 'rental-expense-categories',
 };
 
 /**
@@ -278,6 +284,7 @@ export const INVALIDATION = {
   rentalOrder: [
     KEYS.rentalOrders,
     KEYS.rentalOrder,
+    KEYS.rentalStatement,
     KEYS.rentalArticles,
     KEYS.rentalArticle,
     KEYS.rentalMovements,
@@ -286,13 +293,34 @@ export const INVALIDATION = {
     KEYS.audit,
   ],
 
-  /** An invoice or a payment moves what is owed, and the order shows its invoice. */
+  /**
+   * An invoice or a payment moves what is owed, and the order shows its
+   * invoice. A payment is money in, so it moves the balance and the months.
+   */
   rentalInvoice: [
     KEYS.rentalInvoices,
     KEYS.rentalInvoice,
     KEYS.rentalOrders,
     KEYS.rentalOrder,
     KEYS.rentalDashboard,
+    KEYS.rentalStatement,
+    KEYS.rentalBalance,
+    KEYS.rentalPeriods,
+    KEYS.audit,
+  ],
+
+  /** The default grace decides which orders read as late. */
+  rentalSettings: [KEYS.rentalSettings, KEYS.rentalOrders, KEYS.rentalOrder, KEYS.rentalDashboard],
+
+  /**
+   * Expenses are money out and months carry the balance, so both move the
+   * balance, the statement and every month after the one touched.
+   */
+  rentalCash: [
+    KEYS.rentalExpenses,
+    KEYS.rentalExpenseCategories,
+    KEYS.rentalBalance,
+    KEYS.rentalPeriods,
     KEYS.rentalStatement,
     KEYS.audit,
   ],

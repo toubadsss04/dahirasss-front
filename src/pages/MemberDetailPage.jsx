@@ -47,7 +47,7 @@ export default function MemberDetailPage() {
   const { t } = useTranslation();
   const { memberId } = useParams();
   const navigate = useNavigate();
-  const { isSuperAdmin } = usePermissions();
+  const { isSuperAdmin, canWrite } = usePermissions();
   const selected = useExerciseStore((state) => state.selected());
 
   const [isTransferOpen, setTransferOpen] = useState(false);
@@ -161,9 +161,11 @@ export default function MemberDetailPage() {
               marginTop: 8,
             }}
           >
-            <Button size="small" startIcon={<Pencil size={15} />} onClick={openEdit}>
-              {t('common.actions.edit')}
-            </Button>
+            {canWrite && (
+              <Button size="small" startIcon={<Pencil size={15} />} onClick={openEdit}>
+                {t('common.actions.edit')}
+              </Button>
+            )}
             {isSuperAdmin && (
               <Button
                 size="small"

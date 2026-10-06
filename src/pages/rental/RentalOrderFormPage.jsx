@@ -15,7 +15,7 @@ import DocumentTotals from '../../components/rental/DocumentTotals';
 import OrderLinesEditor from '../../components/rental/OrderLinesEditor';
 import { ErrorNote, Loader, PageHeader } from '../../components/ui';
 import { KEYS } from '../../constants/queryKeys';
-import { CUSTOMER_KINDS } from '../../constants/rental';
+import { CUSTOMER_KINDS, LINE_KINDS, MAX_GRACE_DAYS } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { useDomainMutation } from '../../hooks/useDomainMutation';
 import { extractErrorMessage } from '../../services/apiClient';
@@ -25,7 +25,9 @@ import {
   fetchRentalArticleOptions,
   fetchRentalMemberOptions,
   fetchRentalOrder,
+  fetchRentalSettings,
   isOrderFormValid,
+  lineMode,
   orderToForm,
   priceLine,
   priceOrder,
@@ -39,7 +41,9 @@ import {
  *
  * The customer is a member of the Dahira or someone from outside. Each line
  * shows what is free over the period, and the totals follow what is typed,
- * computed the way the server will store them.
+ * computed the way the server will store them. Per-day lines are priced on
+ * the planned days here and again on the real days at return. The grace days
+ * left empty take the default of the rental settings.
  *
  * @returns {JSX.Element} The screen.
  */
@@ -52,6 +56,7 @@ export default function RentalOrderFormPage() {
   const [error, setError] = useState('');
 
   const members = useQuery({ queryKey: [KEYS.rentalMemberOptions], queryFn: fetchRentalMemberOptions });
+  const settings = useQuery({ queryKey: [KEYS.rentalSettings], queryFn: fetchRentalSettings });
   const order = useQuery({
     queryKey: [KEYS.rentalOrder, orderId],
     queryFn: () => fetchRentalOrder(orderId),
@@ -96,10 +101,17 @@ export default function RentalOrderFormPage() {
   const days = rentalDays(form.startDate, form.endDate);
   const priced = form.lines
     .map((line) => {
+      if (line.kind === LINE_KINDS.SERVICE) {
+        return priceLine(
+          { ...line, quantity: 1, discount: '', unitPrice: line.unitPrice || 0 },
+          lineMode(line),
+          days,
+        );
+      }
       const article = byId.get(line.articleId);
       if (!article) return null;
-      const unitPrice = line.unitPrice !== '' ? line.unitPrice : article.price ?? 0;
-      return priceLine({ ...line, unitPrice }, article.pricing_mode, days);
+      const unitPrice = line.unitPrice !== '' ? line.unitPrice : (article.price ?? 0);
+      return priceLine({ ...line, unitPrice }, lineMode(line, article), days);
     })
     .filter(Boolean);
   const totals = priceOrder(priced, form.discount);
@@ -227,6 +239,21 @@ export default function RentalOrderFormPage() {
           size="small"
           type="number"
           inputProps={{ min: 0, max: 100, step: 0.5 }}
+        />
+        <TextField
+          label={t('rental.orders.graceDays')}
+          value={form.graceDays}
+          onChange={set('graceDays')}
+          size="small"
+          type="number"
+          inputProps={{ min: 0, max: MAX_GRACE_DAYS, step: 1 }}
+          placeholder={
+            settings.data ? String(settings.data.default_return_grace_days) : undefined
+          }
+          InputLabelProps={{ shrink: true }}
+          helperText={t('rental.orders.graceHint', {
+            count: settings.data?.default_return_grace_days ?? 0,
+          })}
         />
         <TextField
           label={t('rental.orders.remarks')}

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
+import TextField from '@mui/material/TextField';
 import {
   Ban,
   CheckCircle2,
@@ -19,18 +20,21 @@ import CheckOutDialog from '../../components/rental/CheckOutDialog';
 import DocumentTotals from '../../components/rental/DocumentTotals';
 import ReturnDialog from '../../components/rental/ReturnDialog';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import FormDialog from '../../components/ui/FormDialog';
 import { DataTable, ErrorNote, Loader, Money, PageHeader, StatusBadge } from '../../components/ui';
-import { pricingModeKey, rentalOrderStatusKey } from '../../constants/labels';
+import { pricingModeKey, rentalOrderStatusKey, serviceTypeKey } from '../../constants/labels';
 import { KEYS } from '../../constants/queryKeys';
 import {
   EDITABLE_ORDER_STATUSES,
   INVOICEABLE_ORDER_STATUSES,
   ORDER_STATUS_TONES,
+  LINE_KINDS,
   ORDER_STATUSES,
   PRICING_MODES,
 } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { useDomainMutation } from '../../hooks/useDomainMutation';
+import { usePermissions } from '../../hooks/usePermissions';
 import { extractErrorMessage } from '../../services/apiClient';
 import { notify } from '../../store/notificationStore';
 import {
@@ -42,28 +46,47 @@ import {
   emptyReturn,
   fetchRentalOrder,
   returnRentalOrder,
+  toDakarDateTimeInput,
   toReturnPayload,
 } from '../../services/rental.service';
-import { formatDate } from '../../utils/format';
+import { formatDate, formatDateTime, todayInDakar } from '../../utils/format';
+
+/**
+ * Blank values of the return dialog, the return moment set to now.
+ *
+ * @returns {object} The values.
+ */
+function emptyReturnValues() {
+  return {
+    comment: '',
+    team: '',
+    returnedAt: toDakarDateTimeInput(),
+    billedDays: '',
+    billedDaysReason: '',
+  };
+}
 
 /**
  * One purchase order and the steps it goes through: confirm, hand out,
  * take back, invoice, or cancel. Each step is offered only when the order
- * stands where it can be taken.
+ * stands where it can be taken. The real moments of each step, the return
+ * deadline with its grace and any lateness are shown beside the planned
+ * period.
  *
  * @returns {JSX.Element} The screen.
  */
 export default function RentalOrderDetailPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
   const { orderId } = useParams();
   const [isConfirming, setConfirming] = useState(false);
   const [isCheckingOut, setCheckingOut] = useState(false);
   const [isCancelling, setCancelling] = useState(false);
   const [returnRows, setReturnRows] = useState(null);
-  const [returnComment, setReturnComment] = useState('');
-  const [returnTeam, setReturnTeam] = useState('');
+  const [returnValues, setReturnValues] = useState(emptyReturnValues);
   const [isDownloading, setDownloading] = useState(false);
+  const [issueDate, setIssueDate] = useState(null);
 
   const order = useQuery({
     queryKey: [KEYS.rentalOrder, orderId],
@@ -73,9 +96,11 @@ export default function RentalOrderDetailPage() {
   const confirmMutation = useDomainMutation('rentalOrder', () => confirmRentalOrder(orderId), {
     successMessage: t('rental.orders.stepDone'),
   });
-  const checkOutMutation = useDomainMutation('rentalOrder', (team) => checkOutRentalOrder(orderId, team), {
-    successMessage: t('rental.orders.stepDone'),
-  });
+  const checkOutMutation = useDomainMutation(
+    'rentalOrder',
+    (values) => checkOutRentalOrder(orderId, values),
+    { successMessage: t('rental.orders.stepDone') },
+  );
   const cancelMutation = useDomainMutation('rentalOrder', (reason) => cancelRentalOrder(orderId, reason), {
     successMessage: t('rental.orders.cancelled'),
   });
@@ -84,7 +109,7 @@ export default function RentalOrderDetailPage() {
   });
   const invoiceMutation = useDomainMutation(
     'rentalInvoice',
-    () => createRentalInvoice({ order_id: orderId }),
+    (date) => createRentalInvoice({ order_id: orderId, issue_date: date || null }),
     {
       successMessage: t('rental.invoices.created'),
       onSuccess: (invoice) =>
@@ -97,8 +122,14 @@ export default function RentalOrderDetailPage() {
 
   const record = order.data;
   const hasInvoice = Boolean(record.invoice_id);
-  const canEdit = EDITABLE_ORDER_STATUSES.includes(record.status) && !hasInvoice;
-  const canInvoice = INVOICEABLE_ORDER_STATUSES.includes(record.status) && !hasInvoice;
+  const canEdit = canWrite && EDITABLE_ORDER_STATUSES.includes(record.status) && !hasInvoice;
+  const waitsForReturn = record.has_daily_lines && record.status !== ORDER_STATUSES.RETURNED;
+  const canInvoice =
+    canWrite &&
+    INVOICEABLE_ORDER_STATUSES.includes(record.status) &&
+    !hasInvoice &&
+    !waitsForReturn;
+  const isReturned = record.status === ORDER_STATUSES.RETURNED;
 
   const download = async () => {
     setDownloading(true);
@@ -127,24 +158,23 @@ export default function RentalOrderDetailPage() {
           .join(' · ')}
         actions={
           <>
-            {record.status === ORDER_STATUSES.DRAFT && (
+            {canWrite && record.status === ORDER_STATUSES.DRAFT && (
               <Button variant="contained" startIcon={<CheckCircle2 size={15} />} onClick={() => setConfirming(true)}>
                 {t('rental.orders.actions.confirm')}
               </Button>
             )}
-            {record.status === ORDER_STATUSES.CONFIRMED && (
+            {canWrite && record.status === ORDER_STATUSES.CONFIRMED && (
               <Button variant="contained" startIcon={<Truck size={15} />} onClick={() => setCheckingOut(true)}>
                 {t('rental.orders.actions.checkOut')}
               </Button>
             )}
-            {record.status === ORDER_STATUSES.OUT && (
+            {canWrite && record.status === ORDER_STATUSES.OUT && (
               <Button
                 variant="contained"
                 startIcon={<RotateCcw size={15} />}
                 onClick={() => {
                   setReturnRows(emptyReturn(record.lines));
-                  setReturnComment('');
-                  setReturnTeam('');
+                  setReturnValues(emptyReturnValues());
                 }}
               >
                 {t('rental.orders.actions.return')}
@@ -155,7 +185,7 @@ export default function RentalOrderDetailPage() {
                 color="inherit"
                 startIcon={<FileText size={15} />}
                 disabled={invoiceMutation.isPending}
-                onClick={() => invoiceMutation.mutate()}
+                onClick={() => setIssueDate(todayInDakar())}
               >
                 {t('rental.orders.actions.invoice')}
               </Button>
@@ -200,7 +230,14 @@ export default function RentalOrderDetailPage() {
                 tone={ORDER_STATUS_TONES[record.status]}
               />
               {record.is_late && (
-                <span style={{ color: 'var(--neg)', marginInlineStart: 8 }}>{t('rental.orders.late')}</span>
+                <span className="badge b-cancel" style={{ marginInlineStart: 8 }}>
+                  {t('rental.orders.lateDays', { count: record.late_days })}
+                </span>
+              )}
+              {record.awaiting_checkout && (
+                <span className="badge b-draft" style={{ marginInlineStart: 8 }}>
+                  {t('rental.orders.awaitingCheckout')}
+                </span>
               )}
             </span>
           </div>
@@ -227,6 +264,69 @@ export default function RentalOrderDetailPage() {
               {t('rental.orders.days', { count: record.rental_days })}
             </span>
           </div>
+          {record.return_deadline && (
+            <div className="r-row">
+              <span className="l">{t('rental.orders.returnDeadline')}</span>
+              <span className="num">
+                {formatDate(record.return_deadline)}
+                <span style={{ color: 'var(--muted)' }}>
+                  {' · '}
+                  {record.return_grace_days === null
+                    ? t('rental.orders.graceDefault')
+                    : t('rental.orders.graceOrder', { count: record.return_grace_days })}
+                </span>
+              </span>
+            </div>
+          )}
+          {record.confirmed_at && (
+            <div className="r-row">
+              <span className="l">{t('rental.orders.confirmedAt')}</span>
+              <span className="num">{formatDateTime(record.confirmed_at)}</span>
+            </div>
+          )}
+          {record.checked_out_at && (
+            <div className="r-row">
+              <span className="l">{t('rental.orders.checkedOutAt')}</span>
+              <span className="num">{formatDateTime(record.checked_out_at)}</span>
+            </div>
+          )}
+          {record.returned_at && (
+            <div className="r-row">
+              <span className="l">{t('rental.orders.returnedAt')}</span>
+              <span className="num">
+                {formatDateTime(record.returned_at)}
+                {isReturned && (
+                  <span style={{ color: record.late_days > 0 ? 'var(--neg)' : 'var(--pos)' }}>
+                    {' · '}
+                    {record.late_days > 0
+                      ? t('rental.orders.returnedLate', { count: record.late_days })
+                      : t('rental.orders.returnedOnTime')}
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+          {record.billed_days && (
+            <div className="r-row" style={{ alignItems: 'flex-start' }}>
+              <span className="l">{t('rental.orders.billedDaysField')}</span>
+              <span style={{ textAlign: 'end' }}>
+                {t('rental.orders.days', { count: record.billed_days })}
+                {record.effective_days && record.effective_days !== record.billed_days && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {t('rental.orders.realDays', { count: record.effective_days })}
+                    {record.billed_days_reason && ` · ${record.billed_days_reason}`}
+                  </div>
+                )}
+              </span>
+            </div>
+          )}
+          {waitsForReturn && !hasInvoice && record.status !== ORDER_STATUSES.CANCELLED && (
+            <div className="r-row">
+              <span className="l" style={{ fontSize: 12 }}>
+                {t('rental.orders.invoiceAfterReturn')}
+              </span>
+            </div>
+          )}
           {record.invoice_id && (
             <div className="r-row">
               <span className="l">{t('rental.columns.invoice')}</span>
@@ -288,13 +388,17 @@ export default function RentalOrderDetailPage() {
             <td>
               <div style={{ fontWeight: 600 }}>{line.article_name}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                {line.pricing_mode === PRICING_MODES.PER_DAY
-                  ? t('rental.orders.billedDays', { count: line.billed_units })
-                  : t(pricingModeKey(line.pricing_mode))}
+                {line.line_kind === LINE_KINDS.SERVICE
+                  ? t(serviceTypeKey(line.service_type))
+                  : line.pricing_mode === PRICING_MODES.PER_DAY
+                    ? t('rental.orders.billedDays', { count: line.billed_units })
+                    : t(pricingModeKey(line.pricing_mode))}
               </div>
             </td>
             <td className="r num">
-              {line.quantity} {line.unit_name}
+              {line.line_kind === LINE_KINDS.SERVICE
+                ? t('common.empty.value')
+                : `${line.quantity} ${line.unit_name}`}
             </td>
             <td className="r">
               <Money value={line.unit_price} />
@@ -307,6 +411,29 @@ export default function RentalOrderDetailPage() {
         )}
       />
 
+      {issueDate !== null && (
+        <FormDialog
+          open={issueDate !== null}
+          title={t('rental.orders.invoiceTitle')}
+          submitLabel={t('rental.orders.actions.invoice')}
+          submitDisabled={!issueDate}
+          onSubmit={() => invoiceMutation.mutateAsync(issueDate)}
+          onClose={() => setIssueDate(null)}
+          maxWidth="xs"
+        >
+          <TextField
+            label={t('rental.orders.issueDate')}
+            type="date"
+            value={issueDate}
+            onChange={(event) => setIssueDate(event.target.value)}
+            size="small"
+            InputLabelProps={{ shrink: true }}
+            helperText={t('rental.orders.issueDateHint')}
+            required
+          />
+        </FormDialog>
+      )}
+
       <ConfirmDialog
         open={isConfirming}
         title={t('rental.orders.confirmTitle')}
@@ -318,7 +445,7 @@ export default function RentalOrderDetailPage() {
 
       <CheckOutDialog
         open={isCheckingOut}
-        onSubmit={(team) => checkOutMutation.mutateAsync(team)}
+        onSubmit={(values) => checkOutMutation.mutateAsync(values)}
         onClose={() => setCheckingOut(false)}
       />
 
@@ -338,13 +465,12 @@ export default function RentalOrderDetailPage() {
           open={Boolean(returnRows)}
           rows={returnRows}
           onRowsChange={setReturnRows}
-          comment={returnComment}
-          onCommentChange={setReturnComment}
-          team={returnTeam}
-          onTeamChange={setReturnTeam}
-          onSubmit={() =>
-            returnMutation.mutateAsync(toReturnPayload(returnRows, returnComment, returnTeam))
-          }
+          values={returnValues}
+          onValuesChange={setReturnValues}
+          checkedOutAt={record.checked_out_at}
+          hasDailyLines={record.has_daily_lines}
+          plannedDays={record.rental_days}
+          onSubmit={() => returnMutation.mutateAsync(toReturnPayload(returnRows, returnValues))}
           onClose={() => setReturnRows(null)}
         />
       )}

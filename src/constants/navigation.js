@@ -2,6 +2,7 @@ import {
   BookOpen,
   Boxes,
   Building2,
+  CalendarCheck,
   CalendarDays,
   ClipboardList,
   FileText,
@@ -16,6 +17,7 @@ import {
   Sparkles,
   Users,
   UserCog,
+  Wallet,
 } from 'lucide-react';
 
 import { ROUTES } from './routes';
@@ -24,19 +26,27 @@ export const ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN',
   ENTITY_MANAGER: 'ENTITY_MANAGER',
   RENTAL_MANAGER: 'RENTAL_MANAGER',
+  SUPERVISOR: 'SUPERVISOR',
+  MEMBER: 'MEMBER',
 };
 
 /** Roles that reach the Dahira itself: members, finances, projects, reports. */
-export const DAHIRA_ROLES = [ROLES.SUPER_ADMIN, ROLES.ENTITY_MANAGER];
+export const DAHIRA_ROLES = [ROLES.SUPER_ADMIN, ROLES.ENTITY_MANAGER, ROLES.SUPERVISOR];
 
 /** Roles that reach the rental business, which stands apart from the Dahira. */
-export const RENTAL_ROLES = [ROLES.SUPER_ADMIN, ROLES.RENTAL_MANAGER];
+export const RENTAL_ROLES = [ROLES.SUPER_ADMIN, ROLES.RENTAL_MANAGER, ROLES.SUPERVISOR];
+
+/** Roles that write in the rental business; the supervisor only reads it. */
+export const RENTAL_WRITE_ROLES = [ROLES.SUPER_ADMIN, ROLES.RENTAL_MANAGER];
+
+/** Roles that read without writing anything. */
+export const READ_ONLY_ROLES = [ROLES.SUPERVISOR];
 
 /**
  * Sidebar model. Every item names the roles that see it, matching the areas
  * the API opens to each role: a rental manager sees the rental group alone.
  * The audit trail and user management stay with the super administrator,
- * matching the backend restrictions.
+ * matching the backend restrictions. A member sees their own space alone.
  *
  * Group headings and item names are translation keys, resolved when the
  * sidebar renders. The same keys name the page in the top bar.
@@ -51,6 +61,12 @@ export const NAVIGATION = [
         icon: LayoutDashboard,
         end: true,
         roles: DAHIRA_ROLES,
+      },
+      {
+        to: ROUTES.memberSpace,
+        labelKey: 'nav.memberSpace',
+        icon: Wallet,
+        roles: [ROLES.MEMBER],
       },
     ],
   },
@@ -92,6 +108,8 @@ export const NAVIGATION = [
       { to: ROUTES.rentalOrders, labelKey: 'nav.rentalOrders', icon: ClipboardList, roles: RENTAL_ROLES },
       { to: ROUTES.rentalInvoices, labelKey: 'nav.rentalInvoices', icon: FileText, roles: RENTAL_ROLES },
       { to: ROUTES.rentalStatement, labelKey: 'nav.rentalStatement', icon: Scale, roles: RENTAL_ROLES },
+      { to: ROUTES.rentalExpenses, labelKey: 'nav.rentalExpenses', icon: Receipt, roles: RENTAL_ROLES },
+      { to: ROUTES.rentalPeriods, labelKey: 'nav.rentalPeriods', icon: CalendarCheck, roles: RENTAL_ROLES },
       { to: ROUTES.rentalArticles, labelKey: 'nav.rentalArticles', icon: Boxes, roles: RENTAL_ROLES },
       { to: ROUTES.rentalSettings, labelKey: 'nav.rentalSettings', icon: Settings2, roles: RENTAL_ROLES },
     ],

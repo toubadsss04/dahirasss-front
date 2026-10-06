@@ -1,4 +1,10 @@
-import { CUSTOMER_KINDS, PRICING_MODES } from '../constants/rental';
+import {
+  CUSTOMER_KINDS,
+  LINE_KINDS,
+  MAX_GRACE_DAYS,
+  PRICING_MODES,
+  SERVICE_TYPES,
+} from '../constants/rental';
 import { optionalText, requiredText } from '../utils/formChanges';
 import { todayInDakar } from '../utils/format';
 import { apiClient } from './apiClient';
@@ -271,13 +277,36 @@ export async function confirmRentalOrder(orderId) {
  * Hand the material of a confirmed order out.
  *
  * @param {string} orderId Identifier.
- * @param {string} team Who delivers the material; blank when unknown.
+ * @param {{team: string, checkedOutAt: string}} values Who delivers the material, blank when
+ *   unknown, and when it left, as a datetime-local value read on Dakar time.
  * @returns {Promise<object>} The order.
  */
-export async function checkOutRentalOrder(orderId, team) {
+export async function checkOutRentalOrder(orderId, { team, checkedOutAt }) {
   const { data } = await apiClient.post(`/rental/orders/${orderId}/check-out`, {
     team: optionalText(team),
+    checked_out_at: checkedOutAt || null,
   });
+  return data;
+}
+
+/**
+ * Read the settings of the rental business.
+ *
+ * @returns {Promise<{default_return_grace_days: number}>} The settings.
+ */
+export async function fetchRentalSettings() {
+  const { data } = await apiClient.get('/rental/settings');
+  return data;
+}
+
+/**
+ * Change the settings of the rental business.
+ *
+ * @param {{default_return_grace_days: number}} payload The settings.
+ * @returns {Promise<object>} The settings.
+ */
+export async function updateRentalSettings(payload) {
+  const { data } = await apiClient.put('/rental/settings', payload);
   return data;
 }
 
@@ -473,12 +502,91 @@ export function isValidPercent(value) {
 }
 
 /**
- * A blank order line.
+ * A blank article line. An empty pricingMode keeps the article's own.
  *
  * @returns {object} The line state.
  */
 export function emptyOrderLine() {
-  return { articleId: '', quantity: '1', unitPrice: '', discount: '' };
+  return {
+    kind: LINE_KINDS.ARTICLE,
+    articleId: '',
+    serviceType: '',
+    label: '',
+    pricingMode: '',
+    quantity: '1',
+    unitPrice: '',
+    discount: '',
+  };
+}
+
+/**
+ * A blank service line, transport by default.
+ *
+ * @returns {object} The line state.
+ */
+export function emptyServiceLine() {
+  return {
+    ...emptyOrderLine(),
+    kind: LINE_KINDS.SERVICE,
+    serviceType: SERVICE_TYPES.TRANSPORT,
+    quantity: '1',
+    discount: '',
+  };
+}
+
+/**
+ * Pricing mode a line applies: a service is always per event, an article
+ * takes the mode chosen on the line or else its own.
+ *
+ * @param {object} line The line state.
+ * @param {object} [article] The article option, for an article line.
+ * @returns {string} PER_EVENT or PER_DAY.
+ */
+export function lineMode(line, article) {
+  if (line.kind === LINE_KINDS.SERVICE) return PRICING_MODES.PER_EVENT;
+  return line.pricingMode || article?.pricing_mode || PRICING_MODES.PER_EVENT;
+}
+
+/**
+ * Format an instant as the value a datetime-local field holds, on Dakar time.
+ *
+ * @param {string|Date} [value] Instant; now when omitted.
+ * @returns {string} YYYY-MM-DDTHH:mm.
+ */
+export function toDakarDateTimeInput(value) {
+  const date = value ? new Date(value) : new Date();
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Dakar',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+/**
+ * Count the days between two moments as the API does: every started 24 hours, at least one.
+ *
+ * Both values are datetime-local strings or ISO instants; Dakar has no
+ * daylight saving, so reading local strings as UTC keeps the difference right.
+ *
+ * @param {string} from Check-out moment.
+ * @param {string} to Return moment.
+ * @returns {number} The days, zero when a moment is missing or out of order.
+ */
+export function effectiveDays(from, to) {
+  if (!from || !to) return 0;
+  const toInstant = (value) => new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`);
+  const span = toInstant(to) - toInstant(from);
+  if (Number.isNaN(span) || span < 0) return 0;
+  return Math.max(Math.ceil(span / 86400000), 1);
 }
 
 /**
@@ -497,6 +605,7 @@ export function emptyOrderForm() {
     startDate: today,
     endDate: today,
     discount: '',
+    graceDays: '',
     remarks: '',
     lines: [emptyOrderLine()],
   };
@@ -520,9 +629,16 @@ export function orderToForm(order, members = []) {
     startDate: order.start_date,
     endDate: order.end_date,
     discount: order.discount_percent ? String(order.discount_percent) : '',
+    graceDays: order.return_grace_days === null || order.return_grace_days === undefined
+      ? ''
+      : String(order.return_grace_days),
     remarks: order.remarks ?? '',
     lines: order.lines.map((line) => ({
-      articleId: line.article_id,
+      kind: line.line_kind ?? LINE_KINDS.ARTICLE,
+      articleId: line.article_id ?? '',
+      serviceType: line.service_type ?? '',
+      label: line.line_kind === LINE_KINDS.SERVICE ? line.article_name : '',
+      pricingMode: line.line_kind === LINE_KINDS.SERVICE ? '' : line.pricing_mode,
       quantity: String(line.quantity),
       unitPrice: String(line.unit_price),
       discount: line.discount_percent ? String(line.discount_percent) : '',
@@ -546,23 +662,34 @@ export function isOrderFormValid(form, articles) {
   const linesValid =
     form.lines.length > 0 &&
     form.lines.every((line) => {
-      const article = articles.get(line.articleId);
       const quantity = Number(line.quantity);
-      const priced = line.unitPrice !== '' || article?.price !== null;
-      return (
-        Boolean(article) &&
+      const common =
         Number.isInteger(quantity) &&
         quantity > 0 &&
-        priced &&
         (line.unitPrice === '' || Number(line.unitPrice) >= 0) &&
-        isValidPercent(line.discount)
-      );
+        isValidPercent(line.discount);
+      if (line.kind === LINE_KINDS.SERVICE) {
+        const labelled =
+          line.serviceType !== SERVICE_TYPES.OTHER || requiredText(line.label).length >= 2;
+        return (
+          Boolean(line.serviceType) &&
+          labelled &&
+          line.unitPrice !== '' &&
+          Number(line.unitPrice) >= 0
+        );
+      }
+      const article = articles.get(line.articleId);
+      const priced = line.unitPrice !== '' || article?.price !== null;
+      return common && Boolean(article) && priced;
     });
+  const grace = form.graceDays === '' ? 0 : Number(form.graceDays);
+  const graceValid = Number.isInteger(grace) && grace >= 0 && grace <= MAX_GRACE_DAYS;
   return (
     hasCustomer &&
     hasPeriod &&
     requiredText(form.eventType).length >= 2 &&
     isValidPercent(form.discount) &&
+    graceValid &&
     linesValid
   );
 }
@@ -583,13 +710,26 @@ export function toOrderPayload(form) {
     start_date: form.startDate,
     end_date: form.endDate,
     discount_percent: Number(form.discount || 0),
+    return_grace_days: form.graceDays === '' ? null : Number(form.graceDays),
     remarks: optionalText(form.remarks),
-    lines: form.lines.map((line) => ({
-      article_id: line.articleId,
-      quantity: Number(line.quantity),
-      unit_price: line.unitPrice === '' ? null : Math.round(Number(line.unitPrice)),
-      discount_percent: Number(line.discount || 0),
-    })),
+    lines: form.lines.map((line) => {
+      const common = {
+        kind: line.kind,
+        quantity: Number(line.quantity),
+        unit_price: line.unitPrice === '' ? null : Math.round(Number(line.unitPrice)),
+        discount_percent: Number(line.discount || 0),
+      };
+      if (line.kind === LINE_KINDS.SERVICE) {
+        return {
+          ...common,
+          quantity: 1,
+          discount_percent: 0,
+          service_type: line.serviceType,
+          label: optionalText(line.label),
+        };
+      }
+      return { ...common, article_id: line.articleId, pricing_mode: line.pricingMode || null };
+    }),
   };
 }
 
@@ -669,13 +809,15 @@ export function toArticlePayload(form, withStatus = false) {
  * @returns {Array<object>} The return rows.
  */
 export function emptyReturn(lines) {
-  return lines.map((line) => ({
-    lineId: line.id,
-    name: line.article_name,
-    quantity: line.quantity,
-    damaged: '0',
-    lost: '0',
-  }));
+  return lines
+    .filter((line) => (line.line_kind ?? LINE_KINDS.ARTICLE) === LINE_KINDS.ARTICLE)
+    .map((line) => ({
+      lineId: line.id,
+      name: line.article_name,
+      quantity: line.quantity,
+      damaged: '0',
+      lost: '0',
+    }));
 }
 
 /**
@@ -702,11 +844,15 @@ export function isReturnValid(rows) {
  * Build the payload of a return, sending only the lines that did not come back whole.
  *
  * @param {Array<object>} rows The return rows.
- * @param {string} comment Free comment.
- * @param {string} team Who brought the material back; blank when unknown.
+ * @param {object} values The rest of the dialog.
+ * @param {string} values.comment Free comment.
+ * @param {string} values.team Who brought the material back; blank when unknown.
+ * @param {string} values.returnedAt When it came back, as a datetime-local value.
+ * @param {string} values.billedDays Days to bill the per-day lines on; blank for the real days.
+ * @param {string} values.billedDaysReason Why the billed days differ from the real ones.
  * @returns {object} The return payload.
  */
-export function toReturnPayload(rows, comment, team) {
+export function toReturnPayload(rows, { comment, team, returnedAt, billedDays, billedDaysReason }) {
   return {
     lines: rows
       .filter((row) => Number(row.damaged || 0) + Number(row.lost || 0) > 0)
@@ -722,6 +868,9 @@ export function toReturnPayload(rows, comment, team) {
       }),
     comment: optionalText(comment),
     team: optionalText(team),
+    returned_at: returnedAt || null,
+    billed_days: billedDays === '' || billedDays === undefined ? null : Number(billedDays),
+    billed_days_reason: optionalText(billedDaysReason),
   };
 }
 
@@ -746,6 +895,22 @@ export function currentMonthPeriod() {
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const prefix = `${year}-${String(month).padStart(2, '0')}`;
   return { dateFrom: `${prefix}-01`, dateTo: `${prefix}-${String(lastDay).padStart(2, '0')}` };
+}
+
+/**
+ * Read a period from the from/to query parameters, the current month when either is missing or malformed.
+ *
+ * @param {URLSearchParams} params Query parameters of the page.
+ * @returns {{dateFrom: string, dateTo: string}} The period.
+ */
+export function periodFromSearch(params) {
+  const isoDay = /^\d{4}-\d{2}-\d{2}$/;
+  const dateFrom = params.get('from');
+  const dateTo = params.get('to');
+  if (isoDay.test(dateFrom ?? '') && isoDay.test(dateTo ?? '') && dateFrom <= dateTo) {
+    return { dateFrom, dateTo };
+  }
+  return currentMonthPeriod();
 }
 
 /**

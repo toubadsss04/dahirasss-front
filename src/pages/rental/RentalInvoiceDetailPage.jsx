@@ -12,11 +12,12 @@ import DocumentTotals from '../../components/rental/DocumentTotals';
 import PaymentDialog from '../../components/rental/PaymentDialog';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { DataTable, ErrorNote, Loader, Money, PageHeader, StatusBadge } from '../../components/ui';
-import { paymentMethodKey, rentalInvoiceStatusKey } from '../../constants/labels';
+import { paymentMethodKey, rentalInvoiceStatusKey, serviceTypeKey } from '../../constants/labels';
 import { KEYS } from '../../constants/queryKeys';
-import { INVOICE_STATUSES, PAYMENT_METHODS } from '../../constants/rental';
+import { INVOICE_STATUSES, LINE_KINDS, PAYMENT_METHODS } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { useDomainMutation } from '../../hooks/useDomainMutation';
+import { usePermissions } from '../../hooks/usePermissions';
 import { extractErrorMessage } from '../../services/apiClient';
 import {
   addRentalPayment,
@@ -37,6 +38,7 @@ import { formatDate, todayInDakar } from '../../utils/format';
  */
 export default function RentalInvoiceDetailPage() {
   const { t } = useTranslation();
+  const { canWrite } = usePermissions();
   const navigate = useNavigate();
   const { invoiceId } = useParams();
   const [payment, setPayment] = useState(null);
@@ -99,7 +101,7 @@ export default function RentalInvoiceDetailPage() {
           .join(' · ')}
         actions={
           <>
-            {isIssued && record.balance > 0 && (
+            {canWrite && isIssued && record.balance > 0 && (
               <Button
                 variant="contained"
                 startIcon={<Plus size={15} />}
@@ -125,7 +127,7 @@ export default function RentalInvoiceDetailPage() {
             >
               {isDownloading ? t('rental.actions.pdfLoading') : t('rental.actions.pdf')}
             </Button>
-            {isIssued && !hasActivePayments && (
+            {canWrite && isIssued && !hasActivePayments && (
               <Button color="inherit" startIcon={<Ban size={15} />} onClick={() => setCancelling(true)}>
                 {t('rental.invoices.cancel')}
               </Button>
@@ -213,9 +215,18 @@ export default function RentalInvoiceDetailPage() {
           rows={record.lines}
           renderRow={(line) => (
             <tr key={line.id}>
-              <td>{line.article_name}</td>
+              <td>
+                {line.article_name}
+                {line.line_kind === LINE_KINDS.SERVICE && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {t(serviceTypeKey(line.service_type))}
+                  </div>
+                )}
+              </td>
               <td className="r num">
-                {line.quantity} {line.unit_name}
+                {line.line_kind === LINE_KINDS.SERVICE
+                  ? t('common.empty.value')
+                  : `${line.quantity} ${line.unit_name}`}
               </td>
               <td className="r">
                 <Money value={line.unit_price} />
@@ -260,7 +271,7 @@ export default function RentalInvoiceDetailPage() {
                 <Money value={item.amount} strike={cancelled} />
               </td>
               <td className="r" style={{ width: '1%' }}>
-                {!cancelled && isIssued && (
+                {canWrite && !cancelled && isIssued && (
                   <Tooltip title={t('rental.payments.cancel')}>
                     <IconButton
                       size="small"

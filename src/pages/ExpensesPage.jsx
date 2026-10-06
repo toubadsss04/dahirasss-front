@@ -62,7 +62,7 @@ import { amountValue } from '../utils/formChanges';
  */
 export default function ExpensesPage() {
   const { t } = useTranslation();
-  const { canCorrectGamouExpense, canCancelGamouExpense } = usePermissions();
+  const { canCorrectGamouExpense, canCancelGamouExpense, canWrite } = usePermissions();
   const selected = useExerciseStore((state) => state.selected());
   const exerciseId = selected?.id;
 
@@ -178,9 +178,11 @@ export default function ExpensesPage() {
         title={t('expenses.title')}
         subtitle={`${t('expenses.subtitle')} · ${selected.name}`}
         actions={
-          <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
-            {t('expenses.add')}
-          </Button>
+          canWrite && (
+            <Button variant="contained" startIcon={<Plus size={16} />} onClick={openForm}>
+              {t('expenses.add')}
+            </Button>
+          )
         }
       />
 
