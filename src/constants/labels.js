@@ -167,3 +167,11 @@ export const stockMovementKey = (type) => `labels.stockMovement.${type}`;
  * @returns {string} The translation key.
  */
 export const paymentMethodKey = (method) => `labels.paymentMethod.${method}`;
+
+/**
+ * Key for the kind of a rental fee.
+ *
+ * @param {string} kind LATE, DAMAGED, LOST or OTHER.
+ * @returns {string} The translation key.
+ */
+export const chargeKindKey = (kind) => `labels.chargeKind.${kind}`;

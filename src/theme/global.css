@@ -1359,3 +1359,59 @@ tr.clickable:hover td {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
+
+/* ---------- Rental returns and fees ---------- */
+
+.return-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .return-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.charge-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.charge-row:last-child {
+  border-bottom: 0;
+}
+
+.charge-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 130px;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .charge-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .charge-fields > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.payment-target {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 10px;
+  align-items: center;
+}
+
+@media (max-width: 480px) {
+  .payment-target {
+    grid-template-columns: 1fr;
+  }
+}

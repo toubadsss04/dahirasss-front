@@ -24,6 +24,7 @@ import { extractErrorMessage } from '../../services/apiClient';
  * @param {string} props.title Dialog title.
  * @param {React.ReactNode} props.children Form fields.
  * @param {string} [props.submitLabel] Label of the submitting button.
+ * @param {string} [props.cancelLabel] Label of the dismissing button, "Cancel" by default.
  * @param {boolean} [props.submitDisabled] Hold the submitting button back, for
  *   instance while a correction has not changed anything yet.
  * @param {() => Promise<unknown>} props.onSubmit Called on submission. Resolving
@@ -38,6 +39,7 @@ export default function FormDialog({
   title,
   children,
   submitLabel,
+  cancelLabel,
   submitDisabled = false,
   onSubmit,
   onClose,
@@ -83,7 +85,7 @@ export default function FormDialog({
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={onClose} disabled={isBusy} color="inherit">
-            {t('common.actions.cancel')}
+            {cancelLabel ?? t('common.actions.cancel')}
           </Button>
           <Button
             type="submit"

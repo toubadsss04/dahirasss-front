@@ -309,6 +309,24 @@ export const INVALIDATION = {
     KEYS.audit,
   ],
 
+  /**
+   * A fee adds to what the order's invoice awaits, and a return also moves
+   * the stock, so both reach the order, the invoice and the figures.
+   */
+  rentalCharge: [
+    KEYS.rentalOrders,
+    KEYS.rentalOrder,
+    KEYS.rentalInvoices,
+    KEYS.rentalInvoice,
+    KEYS.rentalArticles,
+    KEYS.rentalArticle,
+    KEYS.rentalMovements,
+    KEYS.rentalArticleOptions,
+    KEYS.rentalDashboard,
+    KEYS.rentalStatement,
+    KEYS.audit,
+  ],
+
   /** The default grace decides which orders read as late. */
   rentalSettings: [KEYS.rentalSettings, KEYS.rentalOrders, KEYS.rentalOrder, KEYS.rentalDashboard],
 

@@ -8,13 +8,14 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { Ban, ChevronLeft, Download, Plus, Undo2 } from 'lucide-react';
 
+import ChargesTable from '../../components/rental/ChargesTable';
 import DocumentTotals from '../../components/rental/DocumentTotals';
 import PaymentDialog from '../../components/rental/PaymentDialog';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { DataTable, ErrorNote, Loader, Money, PageHeader, StatusBadge } from '../../components/ui';
 import { paymentMethodKey, rentalInvoiceStatusKey, serviceTypeKey } from '../../constants/labels';
 import { KEYS } from '../../constants/queryKeys';
-import { INVOICE_STATUSES, LINE_KINDS, PAYMENT_METHODS } from '../../constants/rental';
+import { INVOICE_STATUSES, LINE_KINDS, RENTAL_PAYMENT_TARGET } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { useDomainMutation } from '../../hooks/useDomainMutation';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -24,10 +25,12 @@ import {
   cancelRentalInvoice,
   cancelRentalPayment,
   downloadRentalPdf,
+  emptyPaymentForm,
   fetchRentalInvoice,
+  toPaymentPayload,
 } from '../../services/rental.service';
 import { notify } from '../../store/notificationStore';
-import { formatDate, todayInDakar } from '../../utils/format';
+import { formatDate } from '../../utils/format';
 
 /**
  * One invoice: what it bills, the purchase order it comes from, and the
@@ -73,6 +76,12 @@ export default function RentalInvoiceDetailPage() {
   const record = invoice.data;
   const isIssued = record.status === INVOICE_STATUSES.ISSUED;
   const hasActivePayments = record.payments.some((item) => item.status === 'ACTIVE');
+  const paymentTargets = [
+    { value: RENTAL_PAYMENT_TARGET, label: t('rental.payments.forRental'), balance: record.rental_balance },
+    ...record.charges
+      .filter((charge) => charge.status === 'ACTIVE' && charge.balance > 0)
+      .map((charge) => ({ value: charge.id, label: charge.label, balance: charge.balance })),
+  ].filter((target) => target.balance > 0);
 
   const download = async () => {
     setDownloading(true);
@@ -106,12 +115,7 @@ export default function RentalInvoiceDetailPage() {
                 variant="contained"
                 startIcon={<Plus size={15} />}
                 onClick={() =>
-                  setPayment({
-                    amount: String(record.balance),
-                    date: todayInDakar(),
-                    method: PAYMENT_METHODS[0],
-                    comment: '',
-                  })
+                  setPayment(emptyPaymentForm(paymentTargets))
                 }
               >
                 {t('rental.payments.add')}
@@ -195,6 +199,7 @@ export default function RentalInvoiceDetailPage() {
           gross={record.gross_total}
           discount={record.discount_total}
           net={record.net_total}
+          charges={record.charges_total}
           paid={record.paid_total}
           balance={record.balance}
         />
@@ -239,6 +244,18 @@ export default function RentalInvoiceDetailPage() {
         />
       </div>
 
+      {record.charges.length > 0 && (
+        <>
+          <div className="section-title">
+            <h2>{t('rental.charges.invoiceTitle')}</h2>
+            <div className="line" />
+          </div>
+          <div style={{ marginBottom: 22 }}>
+            <ChargesTable charges={record.charges} />
+          </div>
+        </>
+      )}
+
       <div className="section-title">
         <h2>{t('rental.payments.title')}</h2>
         <div className="line" />
@@ -246,6 +263,7 @@ export default function RentalInvoiceDetailPage() {
       <DataTable
         columns={[
           { key: 'date', label: t('rental.columns.date') },
+          { key: 'target', label: t('rental.payments.target') },
           { key: 'method', label: t('rental.payments.method') },
           { key: 'amount', label: t('rental.payments.amount'), align: 'right' },
           { key: 'actions', label: '', align: 'right' },
@@ -266,6 +284,7 @@ export default function RentalInvoiceDetailPage() {
                   </div>
                 )}
               </td>
+              <td>{item.charge_label ?? t('rental.payments.forRental')}</td>
               <td>{t(paymentMethodKey(item.method))}</td>
               <td className="r">
                 <Money value={item.amount} strike={cancelled} />
@@ -291,17 +310,10 @@ export default function RentalInvoiceDetailPage() {
       {payment && (
         <PaymentDialog
           open={Boolean(payment)}
-          balance={record.balance}
+          targets={paymentTargets}
           form={payment}
           onChange={setPayment}
-          onSubmit={() =>
-            paymentMutation.mutateAsync({
-              amount: Number(payment.amount),
-              payment_date: payment.date || null,
-              method: payment.method,
-              comment: payment.comment.trim() || null,
-            })
-          }
+          onSubmit={() => paymentMutation.mutateAsync(toPaymentPayload(payment))}
           onClose={() => setPayment(null)}
         />
       )}

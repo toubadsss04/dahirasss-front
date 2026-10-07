@@ -12,24 +12,31 @@ import {
   Download,
   FileText,
   Pencil,
+  Plus,
   RotateCcw,
   Truck,
 } from 'lucide-react';
 
+import ChargesDialog from '../../components/rental/ChargesDialog';
+import ChargesTable from '../../components/rental/ChargesTable';
 import CheckOutDialog from '../../components/rental/CheckOutDialog';
 import DocumentTotals from '../../components/rental/DocumentTotals';
 import ReturnDialog from '../../components/rental/ReturnDialog';
+import ReturnsTable from '../../components/rental/ReturnsTable';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import FormDialog from '../../components/ui/FormDialog';
 import { DataTable, ErrorNote, Loader, Money, PageHeader, StatusBadge } from '../../components/ui';
 import { pricingModeKey, rentalOrderStatusKey, serviceTypeKey } from '../../constants/labels';
 import { KEYS } from '../../constants/queryKeys';
 import {
+  CHARGEABLE_ORDER_STATUSES,
   EDITABLE_ORDER_STATUSES,
   INVOICEABLE_ORDER_STATUSES,
   ORDER_STATUS_TONES,
   LINE_KINDS,
   ORDER_STATUSES,
+  OUT_ORDER_STATUSES,
+  PRICED_ORDER_STATUSES,
   PRICING_MODES,
 } from '../../constants/rental';
 import { buildPath, ROUTES } from '../../constants/routes';
@@ -38,14 +45,19 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { extractErrorMessage } from '../../services/apiClient';
 import { notify } from '../../store/notificationStore';
 import {
+  cancelRentalCharge,
   cancelRentalOrder,
   checkOutRentalOrder,
   confirmRentalOrder,
+  createRentalCharges,
   createRentalInvoice,
   downloadRentalPdf,
+  emptyChargeRow,
   emptyReturn,
   fetchRentalOrder,
+  proposalsToRows,
   returnRentalOrder,
+  toChargesPayload,
   toDakarDateTimeInput,
   toReturnPayload,
 } from '../../services/rental.service';
@@ -73,6 +85,10 @@ function emptyReturnValues() {
  * deadline with its grace and any lateness are shown beside the planned
  * period.
  *
+ * The material may come back in several goes, each listed under Returns
+ * with what is still out. After each go the fees it suggests are offered for
+ * billing; fees can also be added by hand and are listed under Fees.
+ *
  * @returns {JSX.Element} The screen.
  */
 export default function RentalOrderDetailPage() {
@@ -87,6 +103,8 @@ export default function RentalOrderDetailPage() {
   const [returnValues, setReturnValues] = useState(emptyReturnValues);
   const [isDownloading, setDownloading] = useState(false);
   const [issueDate, setIssueDate] = useState(null);
+  const [charges, setCharges] = useState(null);
+  const [chargeToCancel, setChargeToCancel] = useState(null);
 
   const order = useQuery({
     queryKey: [KEYS.rentalOrder, orderId],
@@ -104,9 +122,28 @@ export default function RentalOrderDetailPage() {
   const cancelMutation = useDomainMutation('rentalOrder', (reason) => cancelRentalOrder(orderId, reason), {
     successMessage: t('rental.orders.cancelled'),
   });
-  const returnMutation = useDomainMutation('rentalOrder', (payload) => returnRentalOrder(orderId, payload), {
+  const returnMutation = useDomainMutation('rentalCharge', (payload) => returnRentalOrder(orderId, payload), {
     successMessage: t('rental.orders.returned'),
+    onSuccess: (outcome) => {
+      if (outcome.proposed_charges?.length) {
+        setCharges({
+          mode: 'proposals',
+          rows: proposalsToRows(outcome.proposed_charges),
+          date: todayInDakar(),
+        });
+      }
+    },
   });
+  const chargesMutation = useDomainMutation(
+    'rentalCharge',
+    ({ rows, date }) => createRentalCharges(orderId, toChargesPayload(rows, date)),
+    { successMessage: t('rental.charges.recorded') },
+  );
+  const cancelChargeMutation = useDomainMutation(
+    'rentalCharge',
+    ({ id, reason }) => cancelRentalCharge(id, reason),
+    { successMessage: t('rental.charges.cancelled') },
+  );
   const invoiceMutation = useDomainMutation(
     'rentalInvoice',
     (date) => createRentalInvoice({ order_id: orderId, issue_date: date || null }),
@@ -123,13 +160,16 @@ export default function RentalOrderDetailPage() {
   const record = order.data;
   const hasInvoice = Boolean(record.invoice_id);
   const canEdit = canWrite && EDITABLE_ORDER_STATUSES.includes(record.status) && !hasInvoice;
-  const waitsForReturn = record.has_daily_lines && record.status !== ORDER_STATUSES.RETURNED;
+  const waitsForReturn = record.has_daily_lines && !PRICED_ORDER_STATUSES.includes(record.status);
   const canInvoice =
     canWrite &&
     INVOICEABLE_ORDER_STATUSES.includes(record.status) &&
     !hasInvoice &&
     !waitsForReturn;
   const isReturned = record.status === ORDER_STATUSES.RETURNED;
+  const isOut = OUT_ORDER_STATUSES.includes(record.status);
+  const canCharge = canWrite && CHARGEABLE_ORDER_STATUSES.includes(record.status);
+  const hasReturns = record.returns.length > 0;
 
   const download = async () => {
     setDownloading(true);
@@ -168,7 +208,7 @@ export default function RentalOrderDetailPage() {
                 {t('rental.orders.actions.checkOut')}
               </Button>
             )}
-            {canWrite && record.status === ORDER_STATUSES.OUT && (
+            {canWrite && isOut && (
               <Button
                 variant="contained"
                 startIcon={<RotateCcw size={15} />}
@@ -320,6 +360,20 @@ export default function RentalOrderDetailPage() {
               </span>
             </div>
           )}
+          {record.outstanding_total > 0 && (
+            <div className="r-row">
+              <span className="l">{t('rental.returns.stillOut')}</span>
+              <span className="badge b-closed">
+                {t('rental.returns.stillOutCount', { count: record.outstanding_total })}
+              </span>
+            </div>
+          )}
+          {record.charges_total > 0 && (
+            <div className="r-row">
+              <span className="l">{t('rental.charges.title')}</span>
+              <Money value={record.charges_total} />
+            </div>
+          )}
           {waitsForReturn && !hasInvoice && record.status !== ORDER_STATUSES.CANCELLED && (
             <div className="r-row">
               <span className="l" style={{ fontSize: 12 }}>
@@ -399,6 +453,11 @@ export default function RentalOrderDetailPage() {
               {line.line_kind === LINE_KINDS.SERVICE
                 ? t('common.empty.value')
                 : `${line.quantity} ${line.unit_name}`}
+              {hasReturns && line.line_kind !== LINE_KINDS.SERVICE && line.outstanding > 0 && (
+                <div style={{ fontSize: 12, color: 'var(--warn)' }}>
+                  {t('rental.returns.stillOutCount', { count: line.outstanding })}
+                </div>
+              )}
             </td>
             <td className="r">
               <Money value={line.unit_price} />
@@ -409,6 +468,60 @@ export default function RentalOrderDetailPage() {
             </td>
           </tr>
         )}
+      />
+
+      {hasReturns && (
+        <>
+          <div className="section-title" style={{ marginTop: 22 }}>
+            <h2>{t('rental.returns.title')}</h2>
+            <div className="line" />
+          </div>
+          <ReturnsTable returns={record.returns} />
+        </>
+      )}
+
+      {(record.charges.length > 0 || canCharge) && (
+        <>
+          <div className="section-title" style={{ marginTop: 22 }}>
+            <h2>{t('rental.charges.title')}</h2>
+            <div className="line" />
+            {canCharge && (
+              <Button
+                color="inherit"
+                size="small"
+                startIcon={<Plus size={15} />}
+                onClick={() => setCharges({ mode: 'manual', rows: [emptyChargeRow()], date: todayInDakar() })}
+              >
+                {t('rental.charges.add')}
+              </Button>
+            )}
+          </div>
+          <ChargesTable charges={record.charges} onCancel={canWrite ? setChargeToCancel : undefined} />
+        </>
+      )}
+
+      {charges && (
+        <ChargesDialog
+          open={Boolean(charges)}
+          mode={charges.mode}
+          rows={charges.rows}
+          onRowsChange={(rows) => setCharges({ ...charges, rows })}
+          chargeDate={charges.date}
+          onChargeDateChange={(date) => setCharges({ ...charges, date })}
+          onSubmit={() => chargesMutation.mutateAsync(charges)}
+          onClose={() => setCharges(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        open={Boolean(chargeToCancel)}
+        title={t('rental.charges.cancelTitle')}
+        description={t('rental.charges.cancelDescription')}
+        confirmLabel={t('rental.charges.cancel')}
+        requireReason
+        danger
+        onConfirm={(reason) => cancelChargeMutation.mutateAsync({ id: chargeToCancel.id, reason })}
+        onClose={() => setChargeToCancel(null)}
       />
 
       {issueDate !== null && (
@@ -468,7 +581,7 @@ export default function RentalOrderDetailPage() {
           values={returnValues}
           onValuesChange={setReturnValues}
           checkedOutAt={record.checked_out_at}
-          hasDailyLines={record.has_daily_lines}
+          hasDailyLines={record.has_daily_lines && !hasReturns && !hasInvoice}
           plannedDays={record.rental_days}
           onSubmit={() => returnMutation.mutateAsync(toReturnPayload(returnRows, returnValues))}
           onClose={() => setReturnRows(null)}

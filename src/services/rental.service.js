@@ -2,7 +2,9 @@ import {
   CUSTOMER_KINDS,
   LINE_KINDS,
   MAX_GRACE_DAYS,
+  PAYMENT_METHODS,
   PRICING_MODES,
+  RENTAL_PAYMENT_TARGET,
   SERVICE_TYPES,
 } from '../constants/rental';
 import { optionalText, requiredText } from '../utils/formChanges';
@@ -314,11 +316,35 @@ export async function updateRentalSettings(payload) {
  * Take the material of an order back.
  *
  * @param {string} orderId Identifier.
- * @param {{lines: Array<object>, comment?: string|null}} payload How each line came back.
- * @returns {Promise<object>} The order.
+ * @param {{lines: Array<object>, comment?: string|null}} payload What came back this time, line by line.
+ * @returns {Promise<object>} The order, with the fees this go proposes in proposed_charges.
  */
 export async function returnRentalOrder(orderId, payload) {
   const { data } = await apiClient.post(`/rental/orders/${orderId}/return`, payload);
+  return data;
+}
+
+/**
+ * Record fees on an order whose material has left.
+ *
+ * @param {string} orderId Identifier.
+ * @param {Array<object>} charges Fees, as built by toChargesPayload.
+ * @returns {Promise<Array<object>>} The recorded fees.
+ */
+export async function createRentalCharges(orderId, charges) {
+  const { data } = await apiClient.post(`/rental/orders/${orderId}/charges`, { charges });
+  return data;
+}
+
+/**
+ * Cancel a fee with nothing paid on it. It stays in the history.
+ *
+ * @param {string} chargeId Identifier.
+ * @param {string} reason Why it is cancelled.
+ * @returns {Promise<object>} The fee.
+ */
+export async function cancelRentalCharge(chargeId, reason) {
+  const { data } = await apiClient.post(`/rental/charges/${chargeId}/cancel`, { reason });
   return data;
 }
 
@@ -383,7 +409,7 @@ export async function cancelRentalInvoice(invoiceId, reason) {
  * Record a payment towards an invoice.
  *
  * @param {string} invoiceId Identifier.
- * @param {object} payload Amount, date, method and comment.
+ * @param {object} payload Items paid (rental or fee, with amounts), date, method and comment.
  * @returns {Promise<object>} The invoice.
  */
 export async function addRentalPayment(invoiceId, payload) {
@@ -747,6 +773,7 @@ export function emptyArticleForm(unitId = '') {
     categoryId: '',
     unitId,
     price: '',
+    replacementPrice: '',
     pricingMode: PRICING_MODES.PER_EVENT,
     isActive: true,
   };
@@ -766,6 +793,10 @@ export function articleToForm(article) {
     categoryId: article.category_id ?? '',
     unitId: article.unit_id,
     price: article.price === null ? '' : String(article.price),
+    replacementPrice:
+      article.replacement_price === null || article.replacement_price === undefined
+        ? ''
+        : String(article.replacement_price),
     pricingMode: article.pricing_mode,
     isActive: article.is_active,
   };
@@ -775,11 +806,17 @@ export function articleToForm(article) {
  * Tell whether an article form can be sent.
  *
  * @param {object} form The form state.
- * @returns {boolean} True when the name and unit are set and the price is valid.
+ * @returns {boolean} True when the name and unit are set and both prices are valid.
  */
 export function isArticleFormValid(form) {
-  const price = form.price === '' || (Number.isFinite(Number(form.price)) && Number(form.price) >= 0);
-  return requiredText(form.name).length >= 2 && Boolean(form.unitId) && price;
+  const amountValid = (value) =>
+    value === '' || value === undefined || (Number.isFinite(Number(value)) && Number(value) >= 0);
+  return (
+    requiredText(form.name).length >= 2 &&
+    Boolean(form.unitId) &&
+    amountValid(form.price) &&
+    amountValid(form.replacementPrice)
+  );
 }
 
 /**
@@ -797,51 +834,86 @@ export function toArticlePayload(form, withStatus = false) {
     category_id: form.categoryId || null,
     unit_id: form.unitId,
     price: form.price === '' ? null : Math.round(Number(form.price)),
+    replacement_price:
+      form.replacementPrice === '' || form.replacementPrice === undefined
+        ? null
+        : Math.round(Number(form.replacementPrice)),
     pricing_mode: form.pricingMode,
     ...(withStatus ? { is_active: form.isActive } : {}),
   };
 }
 
 /**
- * The state of a return, one row per order line, all returned in good state.
+ * The state of one go of a return: one row per article line still partly out,
+ * with everything still out prefilled as returned in good state.
  *
- * @param {Array<object>} lines The order lines.
+ * @param {Array<object>} lines The order lines, with what returns accounted for so far.
  * @returns {Array<object>} The return rows.
  */
 export function emptyReturn(lines) {
   return lines
     .filter((line) => (line.line_kind ?? LINE_KINDS.ARTICLE) === LINE_KINDS.ARTICLE)
-    .map((line) => ({
-      lineId: line.id,
-      name: line.article_name,
-      quantity: line.quantity,
-      damaged: '0',
-      lost: '0',
-    }));
+    .map((line) => {
+      const already = (line.returned ?? 0) + (line.damaged ?? 0) + (line.lost ?? 0);
+      const outstanding = line.outstanding ?? line.quantity - already;
+      return {
+        lineId: line.id,
+        name: line.article_name,
+        quantity: line.quantity,
+        already,
+        outstanding,
+        returned: String(outstanding),
+        damaged: '0',
+        lost: '0',
+      };
+    })
+    .filter((row) => row.outstanding > 0);
 }
 
 /**
- * Tell whether every row of a return accounts for its units.
+ * Read the three counts of a return row as numbers.
+ *
+ * @param {object} row A return row.
+ * @returns {{returned: number, damaged: number, lost: number}} The counts, blanks as zero.
+ */
+function returnCounts(row) {
+  return {
+    returned: Number(row.returned || 0),
+    damaged: Number(row.damaged || 0),
+    lost: Number(row.lost || 0),
+  };
+}
+
+/**
+ * Count the units of a return row that stay with the customer after this go.
+ *
+ * @param {object} row A return row.
+ * @returns {number} Units still out once this go is recorded.
+ */
+export function stillOutAfter(row) {
+  const { returned, damaged, lost } = returnCounts(row);
+  return row.outstanding - returned - damaged - lost;
+}
+
+/**
+ * Tell whether a go can be recorded.
  *
  * @param {Array<object>} rows The return rows.
- * @returns {boolean} True when damaged and lost never exceed what went out.
+ * @returns {boolean} True when every count is a whole number, no row declares
+ *   more than is still out, and at least one unit is declared.
  */
 export function isReturnValid(rows) {
-  return rows.every((row) => {
-    const damaged = Number(row.damaged || 0);
-    const lost = Number(row.lost || 0);
-    return (
-      Number.isInteger(damaged) &&
-      Number.isInteger(lost) &&
-      damaged >= 0 &&
-      lost >= 0 &&
-      damaged + lost <= row.quantity
-    );
+  let declared = 0;
+  const rowsValid = rows.every((row) => {
+    const counts = Object.values(returnCounts(row));
+    declared += counts.reduce((sum, count) => sum + count, 0);
+    return counts.every((count) => Number.isInteger(count) && count >= 0) && stillOutAfter(row) >= 0;
   });
+  return rowsValid && declared > 0;
 }
 
 /**
- * Build the payload of a return, sending only the lines that did not come back whole.
+ * Build the payload of one go, sending only the lines something came back on.
  *
  * @param {Array<object>} rows The return rows.
  * @param {object} values The rest of the dialog.
@@ -855,22 +927,177 @@ export function isReturnValid(rows) {
 export function toReturnPayload(rows, { comment, team, returnedAt, billedDays, billedDaysReason }) {
   return {
     lines: rows
-      .filter((row) => Number(row.damaged || 0) + Number(row.lost || 0) > 0)
-      .map((row) => {
-        const damaged = Number(row.damaged || 0);
-        const lost = Number(row.lost || 0);
-        return {
-          line_id: row.lineId,
-          returned: row.quantity - damaged - lost,
-          damaged,
-          lost,
-        };
-      }),
+      .map((row) => ({ line_id: row.lineId, ...returnCounts(row) }))
+      .filter((line) => line.returned + line.damaged + line.lost > 0),
     comment: optionalText(comment),
     team: optionalText(team),
     returned_at: returnedAt || null,
     billed_days: billedDays === '' || billedDays === undefined ? null : Number(billedDays),
     billed_days_reason: optionalText(billedDaysReason),
+  };
+}
+
+/**
+ * Turn the fees proposed after a return into editable rows.
+ *
+ * A proposal with a figure starts selected; one without, such as a lost
+ * unit of an article with no replacement price, waits for an amount.
+ *
+ * @param {Array<object>} proposals The proposed_charges of the return answer.
+ * @returns {Array<object>} The rows.
+ */
+export function proposalsToRows(proposals) {
+  return proposals.map((proposal, index) => ({
+    key: `${proposal.order_line_id}-${proposal.kind}-${index}`,
+    selected: proposal.unit_amount !== null && proposal.unit_amount !== undefined,
+    kind: proposal.kind,
+    label: proposal.label,
+    quantity: String(proposal.quantity),
+    unitAmount:
+      proposal.unit_amount === null || proposal.unit_amount === undefined
+        ? ''
+        : String(proposal.unit_amount),
+    returnId: proposal.return_id ?? null,
+    orderLineId: proposal.order_line_id ?? null,
+  }));
+}
+
+/**
+ * An empty fee typed by hand from the order.
+ *
+ * @returns {object} The row.
+ */
+export function emptyChargeRow() {
+  return {
+    key: 'manual',
+    selected: true,
+    kind: 'OTHER',
+    label: '',
+    quantity: '1',
+    unitAmount: '',
+    returnId: null,
+    orderLineId: null,
+  };
+}
+
+/**
+ * Work out the amount of a fee row.
+ *
+ * @param {object} row A fee row.
+ * @returns {number} Quantity times unit amount, zero while either is blank.
+ */
+export function chargeRowAmount(row) {
+  const quantity = Number(row.quantity || 0);
+  const unitAmount = Number(row.unitAmount || 0);
+  return Number.isFinite(quantity * unitAmount) ? quantity * unitAmount : 0;
+}
+
+/**
+ * Tell whether one fee row can be recorded.
+ *
+ * @param {object} row A fee row.
+ * @returns {boolean} True when it has a wording, a positive whole quantity and amount.
+ */
+export function isChargeRowValid(row) {
+  const quantity = Number(row.quantity);
+  const unitAmount = Number(row.unitAmount);
+  return (
+    requiredText(row.label).length >= 2 &&
+    Number.isInteger(quantity) &&
+    quantity > 0 &&
+    Number.isInteger(unitAmount) &&
+    unitAmount > 0
+  );
+}
+
+/**
+ * Build the fees to record from the selected rows.
+ *
+ * @param {Array<object>} rows The fee rows.
+ * @param {string} [chargeDate] Day the fees are dated, today when blank.
+ * @returns {Array<object>} The charges payload.
+ */
+export function toChargesPayload(rows, chargeDate = '') {
+  return rows
+    .filter((row) => row.selected)
+    .map((row) => ({
+      kind: row.kind,
+      label: requiredText(row.label),
+      quantity: Number(row.quantity),
+      unit_amount: Number(row.unitAmount),
+      charge_date: chargeDate || null,
+      return_id: row.returnId,
+      order_line_id: row.orderLineId,
+    }));
+}
+
+/**
+ * The state of the payment dialog: every element with something left is
+ * ticked for its whole remainder, the common case of a customer settling all
+ * at once.
+ *
+ * @param {Array<{value: string, balance: number}>} targets What can be paid.
+ * @returns {object} The form state, items keyed by target value.
+ */
+export function emptyPaymentForm(targets) {
+  return {
+    items: Object.fromEntries(
+      targets.map((target) => [target.value, { selected: true, amount: String(target.balance) }]),
+    ),
+    date: todayInDakar(),
+    method: PAYMENT_METHODS[0],
+    comment: '',
+  };
+}
+
+/**
+ * Add up what the ticked elements of a payment receive.
+ *
+ * @param {object} form The payment form state.
+ * @returns {number} Total received, blanks counted as zero.
+ */
+export function paymentFormTotal(form) {
+  return Object.values(form.items)
+    .filter((item) => item.selected)
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+}
+
+/**
+ * Tell whether a payment can be recorded.
+ *
+ * @param {object} form The payment form state.
+ * @param {Array<{value: string, balance: number}>} targets What can be paid.
+ * @returns {boolean} True when at least one element is ticked and each ticked
+ *   amount is a positive whole number within what remains of it.
+ */
+export function isPaymentFormValid(form, targets) {
+  const ticked = targets.filter((target) => form.items[target.value]?.selected);
+  return (
+    ticked.length > 0 &&
+    ticked.every((target) => {
+      const amount = Number(form.items[target.value].amount);
+      return Number.isInteger(amount) && amount > 0 && amount <= target.balance;
+    })
+  );
+}
+
+/**
+ * Build the payload of a payment: one item per ticked element.
+ *
+ * @param {object} form The payment form state.
+ * @returns {object} The payment payload.
+ */
+export function toPaymentPayload(form) {
+  return {
+    items: Object.entries(form.items)
+      .filter(([, item]) => item.selected)
+      .map(([value, item]) => ({
+        charge_id: value === RENTAL_PAYMENT_TARGET ? null : value,
+        amount: Number(item.amount),
+      })),
+    payment_date: form.date || null,
+    method: form.method,
+    comment: optionalText(form.comment),
   };
 }
 

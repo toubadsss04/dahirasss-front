@@ -6,7 +6,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import ArticlePerformanceTable from '../../components/rental/ArticlePerformanceTable';
 import PeriodFilter from '../../components/rental/PeriodFilter';
 import { DataTable, ErrorNote, Loader, Money, PageHeader } from '../../components/ui';
-import { paymentMethodKey, serviceTypeKey } from '../../constants/labels';
+import { chargeKindKey, paymentMethodKey, serviceTypeKey } from '../../constants/labels';
 import { KEYS } from '../../constants/queryKeys';
 import { buildPath, ROUTES } from '../../constants/routes';
 import { extractErrorMessage } from '../../services/apiClient';
@@ -88,6 +88,21 @@ export default function RentalStatementPage() {
                     {t('rental.statement.cancelledCount', { count: data.cancelled_invoices_count })}
                   </span>
                   <span />
+                </div>
+              )}
+              {data.charges_by_kind.map((row) => (
+                <div className="r-row" key={row.kind}>
+                  <span className="l">
+                    {t(chargeKindKey(row.kind))} ·{' '}
+                    {t('rental.statement.chargesCount', { count: row.count })}
+                  </span>
+                  <Money value={row.amount} />
+                </div>
+              ))}
+              {data.charges_total > 0 && (
+                <div className="r-row tot">
+                  <span className="l">{t('rental.statement.chargesTotal')}</span>
+                  <Money value={data.charges_total} />
                 </div>
               )}
             </div>

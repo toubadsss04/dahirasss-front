@@ -6,15 +6,23 @@ export const ORDER_STATUSES = {
   DRAFT: 'DRAFT',
   CONFIRMED: 'CONFIRMED',
   OUT: 'OUT',
+  PARTIALLY_RETURNED: 'PARTIALLY_RETURNED',
   RETURNED: 'RETURNED',
   CANCELLED: 'CANCELLED',
 };
+
+/** Order statuses with material still at the customer's: a return may be recorded. */
+export const OUT_ORDER_STATUSES = [ORDER_STATUSES.OUT, ORDER_STATUSES.PARTIALLY_RETURNED];
+
+/** Order statuses that may take fees for lateness, damage or loss. */
+export const CHARGEABLE_ORDER_STATUSES = [...OUT_ORDER_STATUSES, ORDER_STATUSES.RETURNED];
 
 /** Badge tone of each order status. */
 export const ORDER_STATUS_TONES = {
   DRAFT: 'draft',
   CONFIRMED: 'open',
   OUT: 'active',
+  PARTIALLY_RETURNED: 'active',
   RETURNED: 'closed',
   CANCELLED: 'cancel',
 };
@@ -26,8 +34,18 @@ export const EDITABLE_ORDER_STATUSES = [ORDER_STATUSES.DRAFT, ORDER_STATUSES.CON
 export const INVOICEABLE_ORDER_STATUSES = [
   ORDER_STATUSES.CONFIRMED,
   ORDER_STATUSES.OUT,
+  ORDER_STATUSES.PARTIALLY_RETURNED,
   ORDER_STATUSES.RETURNED,
 ];
+
+/** Statuses in which the per-day lines are priced on the real days, after the first return. */
+export const PRICED_ORDER_STATUSES = [ORDER_STATUSES.PARTIALLY_RETURNED, ORDER_STATUSES.RETURNED];
+
+/** Value standing for the rental itself among what a payment may settle; any other is a fee. */
+export const RENTAL_PAYMENT_TARGET = 'RENTAL';
+
+/** Why a fee is billed on top of an order. */
+export const CHARGE_KINDS = ['LATE', 'DAMAGED', 'LOST', 'OTHER'];
 
 /** Lifecycle of an invoice. */
 export const INVOICE_STATUSES = {

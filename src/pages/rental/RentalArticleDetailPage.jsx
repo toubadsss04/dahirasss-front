@@ -143,6 +143,12 @@ export default function RentalArticleDetailPage() {
               <Money value={record.price} />
             )}
           </div>
+          {record.replacement_price !== null && record.replacement_price !== undefined && (
+            <div className="r-row">
+              <span className="l">{t('rental.articles.fields.replacementPrice')}</span>
+              <Money value={record.replacement_price} />
+            </div>
+          )}
           <div className="r-row">
             <span className="l">{t('rental.articles.fields.pricingMode')}</span>
             <span>{t(pricingModeKey(record.pricing_mode))}</span>

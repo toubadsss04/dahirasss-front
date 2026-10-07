@@ -88,6 +88,15 @@ export default function ArticleFormDialog({
         inputProps={{ min: 0, step: 1 }}
         helperText={t('rental.articles.priceHint')}
       />
+      <TextField
+        label={t('rental.articles.fields.replacementPrice')}
+        value={form.replacementPrice}
+        onChange={set('replacementPrice')}
+        size="small"
+        type="number"
+        inputProps={{ min: 0, step: 1 }}
+        helperText={t('rental.articles.replacementPriceHint')}
+      />
       <AppSelect
         label={t('rental.articles.fields.pricingMode')}
         value={form.pricingMode}
