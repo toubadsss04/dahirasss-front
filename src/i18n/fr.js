@@ -1497,6 +1497,7 @@ export default {
     },
     periods: {
       title: 'Clôtures mensuelles',
+      year: 'Année',
       subtitle: "Chaque mois s'ouvre sur le solde de clôture du mois précédent.",
       month: 'Mois',
       opening: "Solde d'ouverture",

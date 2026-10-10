@@ -7,9 +7,18 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import { Lock, LockOpen, Pencil } from 'lucide-react';
 
+import AppSelect from '../../components/forms/AppSelect';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import FormDialog from '../../components/ui/FormDialog';
-import { DataTable, ErrorNote, Loader, Money, PageHeader, StatusBadge } from '../../components/ui';
+import {
+  DataTable,
+  ErrorNote,
+  FilterBar,
+  Loader,
+  Money,
+  PageHeader,
+  StatusBadge,
+} from '../../components/ui';
 import { KEYS } from '../../constants/queryKeys';
 import { useDomainMutation } from '../../hooks/useDomainMutation';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -17,6 +26,8 @@ import { extractErrorMessage } from '../../services/apiClient';
 import {
   closeRentalPeriod,
   fetchRentalPeriods,
+  rentalPeriodsOfYear,
+  rentalPeriodYears,
   reopenRentalPeriod,
   setRentalOpeningBalance,
 } from '../../services/rental-cash.service';
@@ -31,6 +42,10 @@ import { formatDate, formatMonth } from '../../utils/format';
  * refuses any entry dated within them, reopens the latest closed one to
  * correct it, and may type the opening balance of an open month by hand.
  *
+ * The table shows one calendar year at a time, the latest by default. The
+ * months to close or reopen are found across the whole history, so their
+ * buttons only appear when their year is on screen.
+ *
  * @returns {JSX.Element} The screen.
  */
 export default function RentalPeriodsPage() {
@@ -39,6 +54,7 @@ export default function RentalPeriodsPage() {
   const [toClose, setToClose] = useState(null);
   const [toReopen, setToReopen] = useState(null);
   const [opening, setOpening] = useState(null);
+  const [yearFilter, setYearFilter] = useState(null);
 
   const periods = useQuery({ queryKey: [KEYS.rentalPeriods], queryFn: fetchRentalPeriods });
 
@@ -59,6 +75,9 @@ export default function RentalPeriodsPage() {
   const rows = periods.data ?? [];
   const latestClosed = rows.find((row) => row.status === 'CLOSED')?.month;
   const oldestOpen = [...rows].reverse().find((row) => row.status === 'OPEN')?.month;
+  const yearOptions = rentalPeriodYears(rows);
+  const year = yearOptions.includes(yearFilter) ? yearFilter : (yearOptions[0] ?? null);
+  const yearRows = year === null ? rows : rentalPeriodsOfYear(rows, year);
   const openingAmount = opening ? Number(opening.amount) : 0;
   const openingValid =
     opening !== null &&
@@ -71,6 +90,18 @@ export default function RentalPeriodsPage() {
 
       {!canManageRentalPeriods && (
         <p style={{ color: 'var(--muted)', marginTop: 0 }}>{t('rental.periods.adminOnly')}</p>
+      )}
+
+      {yearOptions.length > 0 && (
+        <FilterBar>
+          <AppSelect
+            label={t('rental.periods.year')}
+            value={String(year)}
+            onChange={(value) => setYearFilter(Number(value))}
+            options={yearOptions.map((value) => ({ value: String(value), label: String(value) }))}
+            sx={{ minWidth: 120 }}
+          />
+        </FilterBar>
       )}
 
       {periods.isLoading && <Loader />}
@@ -86,7 +117,7 @@ export default function RentalPeriodsPage() {
             { key: 'closing', label: t('rental.periods.closing'), align: 'right' },
             { key: 'actions', label: '', align: 'right' },
           ]}
-          rows={rows}
+          rows={yearRows}
           renderRow={(row) => {
             const closed = row.status === 'CLOSED';
             return (

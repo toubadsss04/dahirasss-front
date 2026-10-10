@@ -1559,6 +1559,7 @@ export default {
     },
     periods: {
       title: 'الإقفالات الشهرية',
+      year: 'السنة',
       subtitle: 'كل شهر يبدأ برصيد إقفال الشهر السابق.',
       month: 'الشهر',
       opening: 'رصيد الافتتاح',

@@ -23,6 +23,28 @@ export async function fetchRentalPeriods() {
 }
 
 /**
+ * List the years the cash book spans, latest first.
+ *
+ * @param {Array<{month: string}>} periods Months of the cash book, month as YYYY-MM-DD.
+ * @returns {number[]} The distinct years.
+ */
+export function rentalPeriodYears(periods) {
+  const years = new Set(periods.map((period) => Number(period.month.slice(0, 4))));
+  return [...years].sort((a, b) => b - a);
+}
+
+/**
+ * Keep the months of one year, in their original order.
+ *
+ * @param {Array<{month: string}>} periods Months of the cash book, month as YYYY-MM-DD.
+ * @param {number} year Calendar year.
+ * @returns {Array<{month: string}>} The months of that year.
+ */
+export function rentalPeriodsOfYear(periods, year) {
+  return periods.filter((period) => Number(period.month.slice(0, 4)) === year);
+}
+
+/**
  * Close a month, freezing its figures.
  *
  * @param {string} month First day of the month, as YYYY-MM-DD.
